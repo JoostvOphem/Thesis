@@ -1,0 +1,1 @@
+In this folder lies the SemEval dataset, as downloaded from [here]
