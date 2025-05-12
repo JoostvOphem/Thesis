@@ -1,0 +1,10 @@
+*.xlsx
+*.jsonl
+*.json
+*.wandb
+*.log
+*.yaml
+*.DS_Store
+*.pt
+Finetuning_Roberta/Roberta/wandb/*
+*.safetensors
