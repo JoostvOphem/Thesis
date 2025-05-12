@@ -6,5 +6,6 @@
 *.yaml
 *.DS_Store
 *.pt
-Finetuning_Roberta/Roberta/wandb/*
+Finetuning_Roberta/wandb/
 *.safetensors
+*.ipynb_checkpoints
