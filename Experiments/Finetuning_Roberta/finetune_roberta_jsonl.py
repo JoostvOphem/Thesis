@@ -9,7 +9,7 @@ if WANDB_ENABLED:
     import wandb
     run = wandb.init(
         project="roberta-finetune",
-        name="finetune-roberta-SemEval",
+        name="finetune-roberta-SemEval-postgithub",
     )
 
 def prepare_texts_labels():
@@ -37,7 +37,7 @@ def prepare_texts_labels():
     #         curr_df = pd.read_excel(xls, "Sheet1")
     
     #     total_df = pd.concat([total_df, curr_df], ignore_index=True)
-    total_df = pd.read_json(path_or_buf='SemEval2024-M4/SubtaskA/subtaskA_train_monolingual.jsonl', lines=True)
+    total_df = pd.read_json(path_or_buf='Datasets/SemEval/SemEval2024-M4/SubtaskA/subtaskA_train_monolingual.jsonl', lines=True)
 
 
     def drop_nan(df, col):
@@ -70,12 +70,15 @@ def prepare_texts_labels():
     # indices = random.sample(range(len(labels)), len(labels))
     # texts = [texts[i] for i in indices]
     # labels = [labels[i] for i in indices]
+
+    random.shuffle(texts)
+    random.shuffle(labels)
     return texts, labels
 
 
 texts, labels = prepare_texts_labels()
 
-print("percentage human", labels.count(1) / len(labels))
+# print("percentage human", labels.count(1) / len(labels))
 
 
 texts = texts[:100]

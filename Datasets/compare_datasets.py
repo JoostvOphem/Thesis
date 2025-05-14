@@ -179,7 +179,6 @@ def compare_datasets_with_eachother(
 
     
 if __name__ == "__main__":
-    # compare_datasets_with_themselves() <-- ghostbusters (is also the standard if not specified)
     # compare_datasets_with_themselves(
     #     standardized_dataset_path='Datasets/Ghostbusters_standardized',
     #     AI_types=['claude', 'gpt', 'gpt_prompt1', 'gpt_prompt2', 'gpt_semantic', 'gpt_writing'],
@@ -201,17 +200,18 @@ if __name__ == "__main__":
     #     heatmap_location='Figures/multilingual_distance_heatmap.png'
     # )
 
-    compare_datasets_with_eachother(
-        dataset_paths=[
-            'Datasets/Ghostbusters_standardized',
-            'Datasets/SemEval_standardized/monolingual',
-            'Datasets/SemEval_standardized/multilingual'
-        ],
-        AI_types_list=[
-            ['claude', 'gpt', 'gpt_prompt1', 'gpt_prompt2', 'gpt_semantic', 'gpt_writing'],
-            ['monolingual_'+ai_type for ai_type in ['bloomz', 'chatGPT', 'cohere', 'complete', 'davinci', 'dolly', 'GPT4']],
-            ['multilingual_'+ai_type for ai_type in ['bloomz', 'chatGPT', 'cohere', 'complete', 'davinci', 'dolly', 'GPT4']]
-        ],
-        version='complete',
-        heatmap_location='Figures/meta-heatmap.png'
-    )
+    # compare_datasets_with_eachother(
+    #     dataset_paths=[
+    #         'Datasets/Ghostbusters_standardized',
+    #         'Datasets/SemEval_standardized/monolingual',
+    #         'Datasets/SemEval_standardized/multilingual'
+    #     ],
+    #     AI_types_list=[
+    #         ['claude', 'gpt', 'gpt_prompt1', 'gpt_prompt2', 'gpt_semantic', 'gpt_writing'],
+    #         ['monolingual_'+ai_type for ai_type in ['bloomz', 'chatGPT', 'cohere', 'complete', 'davinci', 'dolly', 'GPT4']],
+    #         ['multilingual_'+ai_type for ai_type in ['bloomz', 'chatGPT', 'cohere', 'complete', 'davinci', 'dolly', 'GPT4']]
+    #     ],
+    #     version='complete',
+    #     heatmap_location='Figures/meta-heatmap.png'
+    # )
+    pass

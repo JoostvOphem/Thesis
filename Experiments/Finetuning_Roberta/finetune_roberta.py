@@ -8,7 +8,8 @@ WANDB_ENABLED = True
 if WANDB_ENABLED:
     import wandb
     run = wandb.init(
-        project="roberta-finetune"
+        project="roberta-finetune",
+        name='post-github'
     )
 
 def prepare_texts_labels():
@@ -23,7 +24,7 @@ def prepare_texts_labels():
     # put the data from all files together
     total_df = None
     first=True
-    for file in find_files('data'):
+    for file in find_files('Experiments/Finetuning_Roberta/data'):
         if file.startswith('~') or file.endswith('DS_Store'):
             continue
         
@@ -65,8 +66,8 @@ def prepare_texts_labels():
 
 texts, labels = prepare_texts_labels()
 
-texts = texts[:1000]
-labels = labels[:1000]
+texts = texts[:100]
+labels = labels[:100]
 
 labels = torch.tensor(labels, dtype=torch.float32)
 print("length of texts and labels:", len(texts), len(labels))

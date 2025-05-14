@@ -5,8 +5,8 @@ import torch
 import numpy as np
 
 
-DATASET = "gpt-2"
-WANDB_ENABLED = True
+DATASET = "SemEval"
+WANDB_ENABLED = False
 if WANDB_ENABLED:
     import wandb
 
