@@ -6,6 +6,10 @@
 *.yaml
 *.DS_Store
 *.pt
-Finetuning_Roberta/wandb/
 *.safetensors
 *.ipynb_checkpoints
+Finetuning_Roberta/wandb/
+Datasets/GhostBusters/
+Datasets/GhostBusters_standardized/
+Datasets/SemEval/
+Datasets/SemEval_standardized/
