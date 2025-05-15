@@ -8,7 +8,7 @@
 *.pt
 *.safetensors
 *.ipynb_checkpoints
-Finetuning_Roberta/wandb/
+wandb/
 Datasets/GhostBusters/
 Datasets/GhostBusters_standardized/
 Datasets/SemEval/
