@@ -1,6 +1,13 @@
 import torch
 from sentence_transformers import SentenceTransformer
 
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.decomposition import LatentDirichletAllocation
+from scipy.spatial.distance import jensenshannon
+
+
 import sys
 sys.path.append('.')
 
@@ -42,31 +49,137 @@ def wasserstein_distance(ecdf1, ecdf2):
     return torch.mean(torch.stack(distances))
 
 
-def get_difference_between_datasets(dataset1, dataset2, method='Wasserstein'):
-    # Get embeddings for all texts in dataset1
-    embeddings1 = []
-    for text in dataset1['text']:
-        embedding = get_embedding(text)
-        embeddings1.append(embedding)
-    embeddings1 = torch.stack(embeddings1)
+def tfidf_distance(texts1, texts2):
+    """
+    Calculate distance between two text datasets using TF-IDF representations.
     
-    # Get embeddings for all texts in dataset2
-    embeddings2 = []
-    for text in dataset2['text']:
-        embedding = get_embedding(text)
-        embeddings2.append(embedding)
-    embeddings2 = torch.stack(embeddings2)
+    Returns a value between 0 and 1, where 0 means identical and 1 means completely different.
+    """
+    # Combine all texts for fitting the vectorizer
+    all_texts = texts1 + texts2
     
-    if method == 'Wasserstein':    
+    # Create and fit TF-IDF vectorizer
+    vectorizer = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = vectorizer.fit_transform(all_texts)
+    
+    # Split the matrix back into the two datasets
+    tfidf_texts1 = tfidf_matrix[:len(texts1)]
+    tfidf_texts2 = tfidf_matrix[len(texts1):]
+    
+    # Calculate the centroid (average) of each dataset's TF-IDF vectors
+    centroid1 = np.asarray(tfidf_texts1.mean(axis=0))
+    centroid2 = np.asarray(tfidf_texts2.mean(axis=0))
+    
+    # Calculate cosine similarity between centroids
+    similarity = cosine_similarity(centroid1, centroid2)[0][0]
+    
+    # Convert to distance (1 - similarity)
+    distance = 1.0 - similarity
+    
+    return distance
+
+def vocabulary_overlap_distance(texts1, texts2):
+    """
+    Calculate distance based on vocabulary overlap between two text datasets.
+    
+    Returns a value between 0 and 1, where 0 means complete overlap and 1 means no overlap.
+    """
+    # Tokenize texts (simple whitespace splitting for demonstration)
+    # For better results, consider using NLTK, spaCy, or a similar library
+    tokens1 = set()
+    tokens2 = set()
+    
+    for text in texts1:
+        tokens1.update(text.lower().split())
+    
+    for text in texts2:
+        tokens2.update(text.lower().split())
+    
+    # Calculate Jaccard distance (1 - Jaccard similarity)
+    intersection = len(tokens1.intersection(tokens2))
+    union = len(tokens1.union(tokens2))
+    
+    if union == 0:  # Handle edge case of empty sets
+        return 0.0
+        
+    jaccard_similarity = intersection / union
+    jaccard_distance = 1.0 - jaccard_similarity
+    
+    return jaccard_distance
+
+def topic_model_distance(texts1, texts2, n_topics=10):
+    """
+    Calculate distance between topic distributions of two text datasets.
+    
+    Uses LDA for topic modeling and Jensen-Shannon divergence to compare distributions.
+    Returns a value between 0 and 1, where 0 means identical distributions.
+    """
+    # Create a TF vectorizer for LDA input
+    vectorizer = TfidfVectorizer(max_df=0.95, min_df=2, stop_words='english', use_idf=False)
+    
+    # Combine texts for fitting the vectorizer
+    all_texts = texts1 + texts2
+    tf_matrix = vectorizer.fit_transform(all_texts)
+    
+    # Fit LDA model
+    lda = LatentDirichletAllocation(n_components=n_topics, random_state=42)
+    lda.fit(tf_matrix)
+    
+    # Get topic distributions for each dataset
+    tf_texts1 = vectorizer.transform(texts1)
+    tf_texts2 = vectorizer.transform(texts2)
+    
+    topic_dist1 = lda.transform(tf_texts1)
+    topic_dist2 = lda.transform(tf_texts2)
+    
+    # Calculate average topic distribution for each dataset
+    avg_topic_dist1 = topic_dist1.mean(axis=0)
+    avg_topic_dist2 = topic_dist2.mean(axis=0)
+    
+    # Ensure distributions sum to 1
+    avg_topic_dist1 = avg_topic_dist1 / avg_topic_dist1.sum()
+    avg_topic_dist2 = avg_topic_dist2 / avg_topic_dist2.sum()
+    
+    # Calculate Jensen-Shannon divergence between topic distributions
+    js_distance = jensenshannon(avg_topic_dist1, avg_topic_dist2)
+    
+    return js_distance
+
+def get_embeddings(texts):
+    embeddings = []
+    for text in texts:
+        embedding = get_embedding(text)
+        embeddings.append(embedding)
+    return torch.stack(embeddings)
+
+
+def get_difference_between_datasets(dataset1, dataset2, method='Wasserstein'):    
+    texts1 = dataset1['text']
+    texts2 = dataset2['text']
+    
+    if method == 'Wasserstein': 
+        embeddings1 = get_embeddings(texts1)
+        embeddings2 = get_embeddings(texts2)  
         ecdf1 = calculate_ecdf(embeddings1)
         ecdf2 = calculate_ecdf(embeddings2)
         return wasserstein_distance(ecdf1, ecdf2)
 
     elif method == 'Cosine':
+        embeddings1 = get_embeddings(texts1)
+        embeddings2 = get_embeddings(texts2)
         avg_embedding1 = torch.mean(embeddings1, dim=0)
         avg_embedding2 = torch.mean(embeddings2, dim=0)
         distance = 1 - torch.nn.functional.cosine_similarity(avg_embedding1, avg_embedding2, dim=0)
         return distance
+    
+    elif method == 'Vocabulary_Overlap':
+        return torch.Tensor([vocabulary_overlap_distance(texts1, texts2)])
+    
+    elif method == 'Topic_Model':
+        return torch.Tensor([topic_model_distance(texts1, texts2)])
+    
+    elif method == 'TF-IDF':
+        return torch.Tensor([tfidf_distance(texts1, texts2)])
 
 
 # dataset1 = read_jsonl_dataset('Datasets/Ghostbusters_standardized/claude_complete.jsonl')
@@ -110,7 +223,7 @@ def create_distance_heatmap(distance_matrix, ai_types, location='Figures/ghostbu
     plt.savefig(location, dpi=300, bbox_inches='tight')
     plt.close()
 
-def shrink_dataset(dataset, size=10):
+def shrink_dataset(dataset, size=100):
     small_dataset = {lst: [] for lst in dataset.keys()}
 
     for i in range(size):
@@ -182,10 +295,10 @@ def compare_datasets_with_eachother(
                 # if same dataset, distance is 0 (also true when actually running the code. This just reduces the number of calculations)
                 continue
             dataset1 = read_jsonl_dataset(path1)
-            dataset1 = shrink_dataset(dataset1, 10)
+            dataset1 = shrink_dataset(dataset1, 100)
 
             dataset2 = read_jsonl_dataset(path2)
-            dataset2 = shrink_dataset(dataset2, 10)
+            dataset2 = shrink_dataset(dataset2, 100)
 
             distance = get_difference_between_datasets(dataset1, dataset2, method=method)
             distance_matrix[i,j] = distance
@@ -197,7 +310,7 @@ def compare_datasets_with_eachother(
 
     
 if __name__ == "__main__":
-    method = 'Cosine'
+    method = 'Wasserstein' # options: 'Wasserstein', 'Cosine', 'Vocabulary_Overlap', 'Topic_Model', 'TF-IDF'
     version = 'complete'
 
     # compare_datasets_with_themselves(
@@ -224,19 +337,20 @@ if __name__ == "__main__":
     #     method=method
     # )
 
-    # compare_datasets_with_eachother(
-    #     dataset_paths=[
-    #         'Datasets/Ghostbusters_standardized',
-    #         'Datasets/SemEval_standardized/monolingual',
-    #         'Datasets/SemEval_standardized/multilingual'
-    #     ],
-    #     AI_types_list=[
-    #         ['claude', 'gpt', 'gpt_prompt1', 'gpt_prompt2', 'gpt_semantic', 'gpt_writing'],
-    #         ['monolingual_'+ai_type for ai_type in ['bloomz', 'chatGPT', 'cohere', 'complete', 'davinci', 'dolly', 'GPT4']],
-    #         ['multilingual_'+ai_type for ai_type in ['bloomz', 'chatGPT', 'cohere', 'complete', 'davinci', 'dolly', 'GPT4']]
-    #     ],
-    #     version=version,
-    #     heatmap_location=f'Figures/meta_{method}-heatmap.png',
-    #     method=method
-    # )
+    compare_datasets_with_eachother(
+        dataset_paths=[
+            'Datasets/Ghostbusters_standardized',
+            'Datasets/SemEval_standardized/monolingual',
+            'Datasets/SemEval_standardized/multilingual'
+        ],
+        AI_types_list=[
+            ['claude', 'gpt', 'gpt_prompt1', 'gpt_prompt2', 'gpt_semantic', 'gpt_writing'],
+            ['monolingual_'+ai_type for ai_type in ['bloomz', 'chatGPT', 'cohere', 'complete', 'davinci', 'dolly', 'GPT4']],
+            ['multilingual_'+ai_type for ai_type in ['bloomz', 'chatGPT', 'cohere', 'complete', 'davinci', 'dolly', 'GPT4']]
+        ],
+        version=version,
+        heatmap_location=f'Figures/meta_{method}-heatmap.png',
+        method=method
+    )
+
     pass
