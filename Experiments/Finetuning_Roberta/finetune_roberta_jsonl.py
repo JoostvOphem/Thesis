@@ -112,7 +112,7 @@ tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
 
 inputs = tokenizer(texts, padding=True, truncation=True, return_tensors='pt')
 dataset = TensorDataset(inputs['input_ids'], inputs['attention_mask'], labels)
-dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
+dataloader = DataLoader(dataset, batch_size=16, shuffle=True) # TODO: change to 8
 
 model = RobertaWithClassifier()
 model.train()

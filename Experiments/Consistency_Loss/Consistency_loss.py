@@ -81,6 +81,7 @@ def ss_model(loss_function = "sparse_categorical_crossentropy",
 
 supervised_amt = 0.1
 
+# among most promising: gpt-writing, monolingual davinci
 train_data_human_A = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/human_embeded_subtaskA_train_monolingual.jsonl")))
 test_data_human_A = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/human_embeded_subtaskA_test_monolingual.jsonl")))
 val_data_human_A =torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/human_embeded_subtaskA_dev_monolingual.jsonl")))

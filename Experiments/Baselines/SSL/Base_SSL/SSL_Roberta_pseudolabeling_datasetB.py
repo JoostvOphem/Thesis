@@ -6,17 +6,14 @@ import numpy as np
 
 
 
-WANDB_ENABLED = True
+WANDB_ENABLED = False
 if WANDB_ENABLED:
     import wandb
 
     run = wandb.init(
-        project="SSL_Roberta_pseudolabeling",
-        name='SemEval_datasetB_more_data'
+        project="SSL_Roberta_compare_AB",
+        name='SemEval_datasetB_promising'
     )
-
-# data = torch.tensor(np.array(torch.load("subset_embeddings.npy")))
-# labels = torch.load("subset_labels.npy")
 
 def ss_model(loss_function = "sparse_categorical_crossentropy",
              optimizer = "adamw",
@@ -37,43 +34,31 @@ def ss_model(loss_function = "sparse_categorical_crossentropy",
 
     return model
 
-
-# data = torch.tensor(np.array(torch.load("subset_embeddings.npy")))
-# labels = torch.load("subset_labels.npy")
-
-# train, test, val = 0.6, 0.3, 0.1 # percentages
 supervised_amt = 0.1
+import json
 
-# train_size = int(train * len(data))
-# val_size = int(val * len(data))
+def label_data(path):
+    labels = []
+    with open(path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line:  # Skip empty lines
+                data = json.loads(line)  # Parse each line as JSON
+                labels.append(data["label"])
+    
+    # Convert to tensor
+    return torch.tensor(labels, dtype=torch.float)
 
-# dataset_A
-train_data_human_A = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/human_embeded_subtaskA_train_monolingual.jsonl")))
-test_data_human_A = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/human_embeded_subtaskA_test_monolingual.jsonl")))
-val_data_human_A =torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/human_embeded_subtaskA_dev_monolingual.jsonl")))
-train_labels_human_A = torch.zeros(len(train_data_human_A))
-test_labels_human_A = torch.zeros(len(test_data_human_A))
-val_labels_human_A = torch.zeros(len(val_data_human_A))
 
-train_data_ai_A = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/ai_embeded_subtaskA_train_monolingual.jsonl")))
-test_data_ai_A = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/ai_embeded_subtaskA_test_monolingual.jsonl")))
-val_data_ai_A = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/ai_embeded_subtaskA_dev_monolingual.jsonl")))
-train_labels_ai_A = torch.ones(len(train_data_ai_A))
-test_labels_ai_A = torch.ones(len(test_data_ai_A))
-val_labels_ai_A = torch.ones(len(val_data_ai_A))
-supervised_train_data_human_A = train_data_human_A[:int(supervised_amt * len(train_data_human_A))]
-supervised_train_labels_human_A = train_labels_human_A[:int(supervised_amt * len(train_labels_human_A))]
-supervised_train_data_ai_A = train_data_ai_A[:int(supervised_amt * len(train_data_ai_A))]
-supervised_train_labels_ai_A = train_labels_ai_A[:int(supervised_amt * len(train_labels_ai_A))]
+supervised_train_data_A = torch.tensor(np.array(torch.load("Datasets/Ghostbusters_standardized_embedded/gpt_writing_train.jsonl")))
+supervised_train_labels_A = label_data("Datasets/Ghostbusters_standardized/gpt_writing_train.jsonl")
 
-supervised_train_data_A = torch.cat((supervised_train_data_human_A, supervised_train_data_ai_A), dim=0)
-supervised_train_labels_A = torch.cat((supervised_train_labels_human_A, supervised_train_labels_ai_A), dim=0)
+val_data_A = torch.tensor(np.array(torch.load("Datasets/Ghostbusters_standardized_embedded/gpt_writing_val.jsonl")))
+val_labels_A = label_data("Datasets/Ghostbusters_standardized/gpt_writing_val.jsonl")
 
-val_data_A = torch.cat((val_data_human_A, val_data_ai_A), dim=0)
-val_labels_A = torch.cat((val_labels_human_A, val_labels_ai_A), dim=0)
+test_data_A = torch.tensor(np.array(torch.load("Datasets/Ghostbusters_standardized_embedded/gpt_writing_test.jsonl")))
+test_labels_A = label_data("Datasets/Ghostbusters_standardized/gpt_writing_test.jsonl")
 
-test_data_A = torch.cat((test_data_human_A, test_data_ai_A), dim=0)
-test_labels_A = torch.cat((test_labels_human_A, test_labels_ai_A), dim=0)
 
 # shuffle the data
 def shuffle_data(data, labels):
@@ -81,104 +66,197 @@ def shuffle_data(data, labels):
     return data[indices], labels[indices]
 
 supervised_train_data_A, supervised_train_labels_A = shuffle_data(supervised_train_data_A, supervised_train_labels_A)
-# unsupervised_train_data_A, unsupervised_train_labels_A = shuffle_data(unsupervised_train_data_A, unsupervised_train_labels_A)
 val_data_A, val_labels_A = shuffle_data(val_data_A, val_labels_A)
 test_data_A, test_labels_A = shuffle_data(test_data_A, test_labels_A)
 
 validation_set_A = (val_data_A, val_labels_A)
 
-
-# Dataset B
-
-train_data_human_B = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/human_embeded_subtaskA_train_multilingual.jsonl")))
-test_data_human_B = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/human_embeded_subtaskA_test_multilingual.jsonl")))
-val_data_human_B =torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/human_embeded_subtaskA_dev_multilingual.jsonl")))
-train_labels_human_B = torch.zeros(len(train_data_human_B))
-test_labels_human_B = torch.zeros(len(test_data_human_B))
-val_labels_human_B = torch.zeros(len(val_data_human_B))
-train_data_ai_B = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/ai_embeded_subtaskA_train_multilingual.jsonl")))
-test_data_ai_B = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/ai_embeded_subtaskA_test_multilingual.jsonl")))
-val_data_ai_B = torch.tensor(np.array(torch.load("SemEval2024-M4/SubtaskA/ai_embeded_subtaskA_dev_multilingual.jsonl")))
-train_labels_ai_B = torch.ones(len(train_data_ai_B))
-test_labels_ai_B = torch.ones(len(test_data_ai_B))
-val_labels_ai_B = torch.ones(len(val_data_ai_B))
+supervised_train_data_B = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train.jsonl")))
+supervised_train_labels_B = label_data("Datasets/SemEval_standardized/monolingual/monolingual_davinci_train.jsonl")
 
 
-unsupervised_train_data_ai_B = train_data_ai_B[int(supervised_amt * len(train_data_human_A)):]
-unsupervised_train_labels_ai_B = train_labels_ai_B[int(supervised_amt * len(train_data_human_A)):]
-unsupervised_train_data_human_B = train_data_human_B[int(supervised_amt * len(train_data_human_A)):]
-unsupervised_train_labels_human_B = train_labels_human_B[int(supervised_amt * len(train_data_human_A)):]
+val_data_B = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_val.jsonl")))
+val_labels_B = label_data("Datasets/SemEval_standardized/monolingual/monolingual_davinci_val.jsonl")
 
-unsupervised_train_data_B = torch.cat((unsupervised_train_data_ai_B, unsupervised_train_data_human_B))
-unsupervised_train_labels_B = torch.cat((unsupervised_train_labels_ai_B, unsupervised_train_labels_human_B))
+test_data_B = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_test.jsonl")))
+test_labels_B = label_data("Datasets/SemEval_standardized/monolingual/monolingual_davinci_test.jsonl")
 
-unsupervised_train_data_B, unsupervised_train_labels_B = shuffle_data(unsupervised_train_data_B, unsupervised_train_labels_B)
+# shuffle the data
+def shuffle_data(data, labels):
+    indices = torch.randperm(len(data))
+    return data[indices], labels[indices]
 
-test_data_B = torch.cat((test_data_human_B, test_data_ai_B), dim=0)
-test_labels_B = torch.cat((test_labels_human_B, test_labels_ai_B), dim=0)
+unsupervised_train_data_B, unsupervised_train_labels_B = shuffle_data(supervised_train_data_B, supervised_train_labels_B)
+val_data_B, val_labels_B = shuffle_data(val_data_B, val_labels_B)
 test_data_B, test_labels_B = shuffle_data(test_data_B, test_labels_B)
 
+validation_set_B = (val_data_B, val_labels_B)
 
-
-# unsupervised_train_data_A = torch.cat((unsupervised_train_data_human_A, unsupervised_train_data_ai_A), dim=0)
-# unsupervised_train_labels_A = torch.cat((unsupervised_train_labels_human_A, unsupervised_train_labels_ai_A), dim=0)
-
-# supervised_train_data_A = supervised_train_data_A[:int(supervised_percentage * len(supervised_train_data_A))]
-# supervised_train_labels_A = supervised_train_labels_A[:int(supervised_percentage * len(supervised_train_labels_A))]
-
-
-# data_train = data[:train_size]
-# supervised_train_size = int(supervised_percentage * len(data_train))
-# data_train_supervised = data_train[:supervised_train_size]
-# data_train_unsupervised = data_train[supervised_train_size:]
-
-# data_val = data[train_size:train_size + val_size]
-# data_test = data[train_size + val_size:]
-
-# labels_train = labels[:train_size]
-# labels_train_supervised = labels_train[:supervised_train_size]
-# labels_train_unsupervised = labels_train[supervised_train_size:]
-
-# labels_val = labels[train_size:train_size+val_size]
-# labels_test = labels[train_size+val_size:]
-
-
-# validation_set = (data_val, labels_val)
 
 model = ss_model()
 
 
+print("Original data shapes:")
+print(f"Train data: {supervised_train_data_A.shape}")
+print(f"Train labels: {supervised_train_labels_A.shape}")
 
-for i in range(50):
-    # ---------------
-    # generate pseudo labels
+# Fix data shapes: [1400, 1, 768] -> [1400, 768] and convert to numpy
+train_data_A = supervised_train_data_A.squeeze(1).numpy()
+train_labels_A = supervised_train_labels_A.numpy().astype(np.int32)  # Ensure integer labels
 
-    # Get prediction probabilities
-    pred_probs = torch.tensor(model.predict(unsupervised_train_data_B))  # shape: (N, num_classes)
+val_data_A_np = val_data_A.squeeze(1).numpy()
+val_labels_A_np = val_labels_A.numpy().astype(np.int32)
 
-    # Get max probabilities and predicted labels
-    max_probs, predicted_labels = torch.max(pred_probs, dim=1)
+print("Fixed data shapes:")
+print(f"Train data: {train_data_A.shape}")
+print(f"Train labels: {train_labels_A.shape}")
+print(f"Val data: {val_data_A_np.shape}")
+print(f"Val labels: {val_labels_A_np.shape}")
 
-    # Filter for high-confidence predictions (>= 0.8)
-    confident_mask = max_probs >= 0.8
-    pseudo_labels = predicted_labels[confident_mask]
-    data_pseudo_labeled = unsupervised_train_data_B[confident_mask]
+# Check data properties
+print("Data diagnostics:")
+print(f"Train data min/max: {train_data_A.min():.4f}, {train_data_A.max():.4f}")
+print(f"Train data mean/std: {train_data_A.mean():.4f}, {train_data_A.std():.4f}")
+print(f"Label distribution: {np.bincount(train_labels_A)}")
+print(f"Unique labels: {np.unique(train_labels_A)}")
+
+# Create model with correct architecture
+def create_model():
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Dense(300, activation="relu", input_shape=(768,), name="hiddenLayer1"),
+        tf.keras.layers.Dense(100, activation="relu", name="hiddenLayer2"),
+        tf.keras.layers.Dense(10, activation="relu", name="hiddenLayer3"),
+        tf.keras.layers.Dense(2, activation="softmax", name="outputLayer")
+    ])
     
-    # Combine labeled and pseudo-labeled data
-    data_train_combined = torch.concatenate([supervised_train_data_A, data_pseudo_labeled], axis=0)
-    labels_train_combined = torch.concatenate([supervised_train_labels_A, pseudo_labels], axis=0)
-    # ---------------
+    model.compile(
+        loss="sparse_categorical_crossentropy",
+        optimizer=tf.keras.optimizers.AdamW(learning_rate=0.001),
+        metrics=["accuracy"]
+    )
+    return model
 
-    # Train model again with both labeled and pseudo-labeled data
-    model.fit(data_train_combined, labels_train_combined, epochs=10, validation_data=validation_set_A)
+# Create fresh model
+model = create_model()
+model.summary()
 
-    evaluation = model.evaluate(test_data_B, test_labels_B)
-    print(model.metrics_names)
-    print(evaluation)
+# Prepare validation data
+validation_data = (val_data_A_np, val_labels_A_np)
 
-    if WANDB_ENABLED:
-        wandb.log({
-            "loss": evaluation[0],
-            "accuracy": evaluation[1],
-            "epoch": i
-        })
+print("\n=== STARTING TRAINING ===")
+print("Step 1: Training on labeled Dataset A...")
+
+# Train the model
+history = model.fit(
+    train_data_A, 
+    train_labels_A,
+    epochs=30, 
+    validation_data=validation_data,
+    batch_size=32,
+    verbose=1
+)
+
+print("Training completed!")
+
+# Test on a small batch to verify the model is working
+print("\n=== TESTING MODEL ===")
+test_predictions = model.predict(train_data_A[:10])
+print(f"Sample predictions shape: {test_predictions.shape}")
+print(f"Sample predictions: {test_predictions[:3]}")
+print(f"Sample true labels: {train_labels_A[:3]}")
+
+# # Initial evaluation on Dataset B
+# initial_eval = model.evaluate(test_data_B, test_labels_B)
+# print(f"Initial performance on Dataset B - Loss: {initial_eval[0]:.4f}, Accuracy: {initial_eval[1]:.4f}")
+
+# # STEP 2: Semi-supervised iterations with pseudo-labeling on Dataset B
+# for i in range(50):
+#     print(f"\n--- Iteration {i+1} ---")
+    
+#     # Generate pseudo-labels on unlabeled Dataset B
+#     pred_probs = torch.tensor(model.predict(unsupervised_train_data_B))
+#     max_probs, predicted_labels = torch.max(pred_probs, dim=1)
+    
+#     # Use adaptive confidence threshold - start conservative due to domain shift
+#     confidence_threshold = max(0.6, 0.8 - i * 0.002)  # Start at 0.8, decrease to 0.6
+#     confident_mask = max_probs >= confidence_threshold
+    
+#     if confident_mask.sum() == 0:
+#         print(f"No confident predictions with threshold {confidence_threshold:.3f}")
+#         print("Continuing to next iteration...")
+#         continue
+    
+#     pseudo_labels = predicted_labels[confident_mask]
+#     data_pseudo_labeled = unsupervised_train_data_B[confident_mask]
+    
+#     print(f"Pseudo-labeled samples: {len(pseudo_labels)}/{len(unsupervised_train_data_B)} (threshold: {confidence_threshold:.3f})")
+    
+#     # Combine original labeled Dataset A with pseudo-labeled Dataset B
+#     data_train_combined = torch.concatenate([supervised_train_data_A, data_pseudo_labeled], axis=0)
+#     labels_train_combined = torch.concatenate([supervised_train_labels_A, pseudo_labels], axis=0)
+    
+#     print(f"Training on {len(supervised_train_data_A)} labeled + {len(data_pseudo_labeled)} pseudo-labeled samples")
+    
+#     # Train with combined data - use Dataset B validation
+#     model.fit(data_train_combined, labels_train_combined, 
+#               epochs=5, validation_data=validation_set_B, verbose=0)
+    
+#     # Evaluate on Dataset B test set
+#     evaluation = model.evaluate(test_data_B, test_labels_B, verbose=0)
+#     print(f"Performance on Dataset B - Loss: {evaluation[0]:.4f}, Accuracy: {evaluation[1]:.4f}")
+    
+#     # Optional: Check pseudo-label quality (for analysis only)
+#     if len(pseudo_labels) > 0:
+#         # Get true labels for the pseudo-labeled samples (just for monitoring)
+#         true_labels_subset = supervised_train_labels_B[confident_mask]
+#         pseudo_accuracy = (pseudo_labels == true_labels_subset).float().mean()
+#         print(f"Pseudo-label accuracy: {pseudo_accuracy:.4f} (for monitoring only)")
+    
+#     if WANDB_ENABLED:
+#         wandb.log({
+#             "loss": evaluation[0],
+#             "accuracy": evaluation[1],
+#             "pseudo_samples": len(pseudo_labels),
+#             "confidence_threshold": confidence_threshold,
+#             "pseudo_accuracy": pseudo_accuracy.item() if len(pseudo_labels) > 0 else 0,
+#             "iteration": i
+#         })
+
+# print("\nFinal evaluation:")
+# final_eval = model.evaluate(test_data_B, test_labels_B)
+# print(f"Final performance on Dataset B - Loss: {final_eval[0]:.4f}, Accuracy: {final_eval[1]:.4f}")
+# print(f"Improvement: {final_eval[1] - initial_eval[1]:.4f}")
+
+# # for i in range(50):
+# #     # ---------------
+# #     # generate pseudo labels
+
+# #     # Get prediction probabilities
+# #     pred_probs = torch.tensor(model.predict(unsupervised_train_data_B))  # shape: (N, num_classes)
+
+# #     # Get max probabilities and predicted labels
+# #     max_probs, predicted_labels = torch.max(pred_probs, dim=1)
+
+# #     # Filter for high-confidence predictions (>= 0.95)
+# #     confident_mask = max_probs >= 0.95
+# #     pseudo_labels = predicted_labels[confident_mask]
+# #     data_pseudo_labeled = unsupervised_train_data_B[confident_mask]
+    
+# #     # Combine labeled and pseudo-labeled data
+# #     data_train_combined = torch.concatenate([supervised_train_data_A, data_pseudo_labeled], axis=0)
+# #     labels_train_combined = torch.concatenate([supervised_train_labels_A, pseudo_labels], axis=0)
+# #     # ---------------
+
+# #     # Train model again with both labeled and pseudo-labeled data
+# #     model.fit(data_train_combined, labels_train_combined, epochs=10, validation_data=validation_set_A)
+
+# #     evaluation = model.evaluate(test_data_B, test_labels_B)
+# #     print(model.metrics_names)
+# #     print(evaluation)
+
+# #     if WANDB_ENABLED:
+# #         wandb.log({
+# #             "loss": evaluation[0],
+# #             "accuracy": evaluation[1],
+# #             "epoch": i
+# #         })

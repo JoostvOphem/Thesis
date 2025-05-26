@@ -55,27 +55,46 @@ def embed_layer(text, layer=-2): # second to last layer, kinda arbitrarily chose
 # Embed the data
 import pandas as pd
 
-input_files = find_files("Datasets/SemEval_standardized/monolingual")
-output_folder = "Datasets/SemEval_standardized_embedded/monolingual"
+# among most promising: gpt-writing, monolingual davinci
+data_version = "monolingual_davinci"  # change this to the desired dataset version
+AMT_TO_EMBED = 10000
+
+if data_version == "gpt_writing":
+    input_files = ["Datasets/Ghostbusters_standardized/gpt_writing_train.jsonl",
+                   "Datasets/Ghostbusters_standardized/gpt_writing_test.jsonl",
+                   "Datasets/Ghostbusters_standardized/gpt_writing_val.jsonl"]
+    output_folder = "Datasets/Ghostbusters_standardized_embedded"
+
+if data_version == "monolingual_davinci":
+    input_files = ["Datasets/SemEval_standardized/monolingual/monolingual_davinci_train.jsonl",
+                "Datasets/SemEval_standardized/monolingual/monolingual_davinci_test.jsonl",
+                "Datasets/SemEval_standardized/monolingual/monolingual_davinci_val.jsonl"]
+    output_folder = "Datasets/SemEval_standardized_embedded/monolingual"
 
 for input_file in input_files:
     jsonObj = pd.read_json(path_or_buf=input_file, lines=True)
-    jsonObj = jsonObj.sample(frac=1).reset_index(drop=True)
+    jsonObj = jsonObj.reset_index(drop=True)
 
     embeddings = []
+    labels = []
 
     for i, row in jsonObj.iterrows():
         if i % 100 == 0 and i > 0:
             print(f"Processing row {i} / {len(jsonObj)} of {input_file}")
         
-        if i == 2000:
+        if i == AMT_TO_EMBED:
             break
         text = row['text']
         embedding = embed_layer(text)
         embeddings.append(embedding)
+
+        label = row['label']
+        labels.append(label)
         
-    final_tensor = torch.stack(embeddings)
+    final_text_tensor = torch.stack(embeddings)
+    final_label_tensor = torch.tensor(labels, dtype=torch.float32).unsqueeze(1)
 
     file_ending = input_file.split("/")[-1]
-    torch.save(final_tensor, output_folder + "/" + file_ending)
+    torch.save(final_text_tensor, output_folder + "/" + file_ending)
+    torch.save(final_label_tensor, output_folder + "/" + file_ending.replace('.jsonl', '_labels.pt'))
     print(f"Saved {file_ending} to {output_folder}")
