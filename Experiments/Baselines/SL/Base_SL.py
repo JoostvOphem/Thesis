@@ -7,14 +7,14 @@ import json
 import scipy
 
 
-DATASET = "monolingual_davinci"  # options: "gpt_writing", "monolingual_davinci"
+DATASET = "GPT2"  # options: "gpt_writing", "monolingual_davinci"
 WANDB_ENABLED = True
 if WANDB_ENABLED:
     import wandb
 
     run = wandb.init(
         project="SL_Roberta_compare",
-        name=f'26-05_{DATASET}'
+        name=f'27-05_{DATASET}'
     )
 
 def s_model(loss_function = "sparse_categorical_crossentropy",
@@ -71,26 +71,38 @@ def label_data(path):
     # Convert to tensor
     return torch.tensor(labels, dtype=np.int32)
 
+def load_path_in_tensor(path):
+    return torch.tensor(np.array(torch.load(path)))
+
 if DATASET == "gpt_writing":
-    train_data = torch.tensor(np.array(torch.load("Datasets/Ghostbusters_standardized_embedded/gpt_writing_train.jsonl")))
-    train_labels = torch.tensor(np.array(torch.load("Datasets/Ghostbusters_standardized_embedded/gpt_writing_train_labels.pt")))
+    train_data = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_train.jsonl")
+    train_labels = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_train_labels.pt")
 
-    val_data = torch.tensor(np.array(torch.load("Datasets/Ghostbusters_standardized_embedded/gpt_writing_val.jsonl")))
-    val_labels = torch.tensor(np.array(torch.load("Datasets/Ghostbusters_standardized_embedded/gpt_writing_val_labels.pt")))
+    val_data = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_val.jsonl")
+    val_labels = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_val_labels.pt")
 
-    test_data = torch.tensor(np.array(torch.load("Datasets/Ghostbusters_standardized_embedded/gpt_writing_test.jsonl")))
-    test_labels = torch.tensor(np.array(torch.load("Datasets/Ghostbusters_standardized_embedded/gpt_writing_test_labels.pt")))
+    test_data = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_test.jsonl")
+    test_labels = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_test_labels.pt")
 
 if DATASET == "monolingual_davinci":
-    train_data = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train.jsonl")))
-    train_labels = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train_labels.pt")))
+    train_data = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train.jsonl")
+    train_labels = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train_labels.pt")
 
-    val_data = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_val.jsonl")))
-    val_labels = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_val_labels.pt")))
+    val_data = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_val.jsonl")
+    val_labels = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_val_labels.pt")
 
-    test_data = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_test.jsonl")))
-    test_labels = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_test_labels.pt")))
+    test_data = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_test.jsonl")
+    test_labels = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_test_labels.pt")
 
+if DATASET == "GPT2":
+    train_data = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_train.jsonl")
+    train_labels = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_train_labels.pt")
+
+    val_data = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_val.jsonl")
+    val_labels = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_val_labels.pt")
+
+    test_data = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_test.jsonl")
+    test_labels = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_test_labels.pt")
 
 # shuffle the data
 def shuffle_data(data, labels):
@@ -149,8 +161,8 @@ for i in range(20):
 
     if WANDB_ENABLED:
         wandb.log({
-            "loss": evaluation[0],
-            "accuracy": evaluation[1],
+            "test_loss": evaluation[0],
+            "test_accuracy": evaluation[1],
             "train_loss": train_evaluation[0],
             "train_accuracy": train_evaluation[1],
             "epoch": i

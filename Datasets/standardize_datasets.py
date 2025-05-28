@@ -15,7 +15,8 @@ from dataset_utils import read_jsonl_dataset
 random.seed(42)  # For reproducibility
 TRAIN_PERCENT, VAL_PERCENT, TEST_PERCENT = 0.7, 0.15, 0.15
 STANDARDIZE_GHOSTBUSTERS = False
-STANDARDIZE_SEMEVAL = True
+STANDARDIZE_SEMEVAL = False
+STANDARDIZE_GPT2 = True
 
 ### HELPER FUNCTIONS ###
 
@@ -24,6 +25,14 @@ def find_writing_sessions(dataset_dir):
         os.path.join(dataset_dir, path)
         for path in os.listdir(dataset_dir) 
         if path.endswith('txt')
+    ]
+    return paths
+
+def find_xlsx_files(dataset_dir):
+    paths = [
+        os.path.join(dataset_dir, path)
+        for path in os.listdir(dataset_dir) 
+        if path.endswith('.xlsx')
     ]
     return paths
 
@@ -218,9 +227,7 @@ if STANDARDIZE_SEMEVAL:
             
             texts = human_texts + AI_texts
             labels = human_labels + AI_labels
-            random.shuffle(texts)
-            random.shuffle(labels)
-            
+
             create_jsonl_dataset(
                 texts, 
                 labels, 
@@ -236,8 +243,6 @@ if STANDARDIZE_SEMEVAL:
             all_texts.extend(AI_texts)
             all_labels.extend(AI_labels)
         
-        random.shuffle(all_texts)
-        random.shuffle(all_labels)
         create_jsonl_dataset(
             all_texts, 
             all_labels, 
@@ -256,3 +261,58 @@ if STANDARDIZE_SEMEVAL:
 
 else:
     print("---- SEMEVAL dataset essays NOT standardized ----\n")
+
+
+### GPT2 ###
+
+if STANDARDIZE_GPT2:
+    import pandas as pd
+
+    files = find_xlsx_files('Datasets/GPT2')
+    all_AI_texts = []
+    all_human_texts = []
+    for i, file in enumerate(files):
+
+        sheets_dict = pd.read_excel(file, sheet_name=None)
+
+        all_sheets = []
+        for name, sheet in sheets_dict.items():
+            sheet['sheet'] = name
+            sheet = sheet.rename(columns=lambda x: x.split('\n')[-1])
+            all_sheets.append(sheet)
+
+        full_table = pd.concat(all_sheets)
+        full_table.reset_index(inplace=True, drop=True)
+
+        
+        if not full_table.columns[-2] == 'AI': # remove the 'AI or Human?' columns
+            continue
+                        
+        # make sure no human and AI texts of the same questions are put in the preprocessed dataset
+        if i % 2 == 0:
+            all_AI_texts.extend(full_table['AI'].tolist())
+        else:
+            all_human_texts.extend(full_table['Human'].tolist())
+
+    # remove the nan-values
+    all_AI_texts = [text for text in all_AI_texts if isinstance(text, str)]
+    all_human_texts = [text for text in all_human_texts if isinstance(text, str)]
+   
+    texts = all_AI_texts + all_human_texts
+    labels = [1] * len(all_AI_texts) + [0] * len(all_human_texts)
+
+    create_jsonl_dataset(
+        texts, 
+        labels, 
+        [
+            'Datasets/GPT2_standardized/gpt2_train.jsonl',
+            'Datasets/GPT2_standardized/gpt2_val.jsonl',
+            'Datasets/GPT2_standardized/gpt2_test.jsonl',
+            'Datasets/GPT2_standardized/gpt2_complete.jsonl'
+        ],
+        dataset_name='gpt2'
+    )
+    print("---- GPT2 dataset standardized ----\n")
+
+else:
+    print("---- GPT2 dataset NOT standardized ----\n")

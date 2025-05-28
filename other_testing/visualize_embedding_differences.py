@@ -4,8 +4,8 @@ import torch
 import numpy as np
 
 # Take a sample of embeddings
-train_data = torch.tensor(np.array(torch.load("Datasets/Ghostbusters_standardized_embedded/gpt_writing_train.jsonl")))
-train_labels = torch.tensor(np.array(torch.load("Datasets/Ghostbusters_standardized_embedded/gpt_writing_train_labels.pt")))
+train_data = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train.jsonl")))
+train_labels = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train_labels.pt")))
 
 
 sample_data = train_data.numpy()
@@ -25,5 +25,5 @@ for i in range(2):
     plt.scatter(embeddings_2d[mask, 0], embeddings_2d[mask, 1], 
                 c=colors[i], label=f'Class {i}', alpha=0.6)
 plt.legend()
-plt.title('Embedding Space Visualization (Ghostbusters GPT Writing)')
+plt.title('Embedding Space Visualization (SemEval Monolingual Davinci)')
 plt.show()

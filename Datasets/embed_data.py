@@ -55,9 +55,8 @@ def embed_layer(text, layer=-2): # second to last layer, kinda arbitrarily chose
 # Embed the data
 import pandas as pd
 
-# among most promising: gpt-writing, monolingual davinci
 data_version = "monolingual_davinci"  # change this to the desired dataset version
-AMT_TO_EMBED = 10000
+AMT_TO_EMBED = 5000
 
 if data_version == "gpt_writing":
     input_files = ["Datasets/Ghostbusters_standardized/gpt_writing_train.jsonl",
@@ -70,6 +69,13 @@ if data_version == "monolingual_davinci":
                 "Datasets/SemEval_standardized/monolingual/monolingual_davinci_test.jsonl",
                 "Datasets/SemEval_standardized/monolingual/monolingual_davinci_val.jsonl"]
     output_folder = "Datasets/SemEval_standardized_embedded/monolingual"
+
+if data_version == "GPT2":
+    input_files = ["Datasets/GPT2_standardized/gpt2_complete.jsonl",
+                   "Datasets/GPT2_standardized/gpt2_test.jsonl",
+                   "Datasets/GPT2_standardized/gpt2_val.jsonl",
+                   "Datasets/GPT2_standardized/gpt2_train.jsonl"]
+    output_folder = "Datasets/GPT2_standardized_embedded"
 
 for input_file in input_files:
     jsonObj = pd.read_json(path_or_buf=input_file, lines=True)
