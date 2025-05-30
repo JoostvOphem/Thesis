@@ -9,14 +9,15 @@ import scipy
 from data_utils import get_dataset
 
 
-DATASET = "Ghostbusters_all"  # options: "gpt_writing", "monolingual_davinci", "GPT2", "Ghostbusters_all", "SemEval_complete"
+DATASET = "Ghostbusters_all"  # options: "gpt_writing", "monolingual_davinci", "GPT2", "Ghostbusters_all", "SemeVal_complete"
+TEST_DATASET = "SemeVal_complete"
 WANDB_ENABLED = True
 if WANDB_ENABLED:
     import wandb
 
     run = wandb.init(
         project="30-05-comparisons",
-        name=f'SL_{DATASET}'
+        name=f'SL_B_{DATASET}_{TEST_DATASET}'
     )
 
 def s_model(loss_function = "sparse_categorical_crossentropy",
@@ -76,7 +77,8 @@ def label_data(path):
 def load_path_in_tensor(path):
     return torch.tensor(np.array(torch.load(path)))
 
-train_data, train_labels, val_data, val_labels, test_data, test_labels = get_dataset(DATASET)
+train_data, train_labels, val_data, val_labels, _, _ = get_dataset(DATASET)
+_, _, _, _, test_data, test_labels = get_dataset(TEST_DATASET)
 
 # shuffle the data
 def shuffle_data(data, labels):
@@ -104,9 +106,11 @@ def get_class_weights(labels):
             class_amts[label] += 1
     
     total_amt = len(labels)
+    print(class_amts)
     class_weights = {i: class_amts[label] / total_amt for i, label in enumerate(class_amts)}
     return class_weights
 class_weight_dict = get_class_weights(train_labels)
+print(class_weight_dict)
 
 model = s_model()
 

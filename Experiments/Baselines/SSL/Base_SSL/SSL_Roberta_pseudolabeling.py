@@ -4,15 +4,17 @@ import tensorflow as tf
 import torch
 import numpy as np
 
+from data_utils import get_dataset
 
-DATASET = "GPT2"  # Change this to "gpt_writing" or "GPT2" as needed
+
+DATASET = "Ghostbusters_all"  # options: "Ghostbusters_all", "gpt_writing", "monolingual_davinci", "GPT2"
 WANDB_ENABLED = True
 if WANDB_ENABLED:
     import wandb
 
     run = wandb.init(
-        project="SSL_Roberta_pseudolabeling",
-        name=f'27-05-{DATASET}'
+        project="30-05-comparisons",
+        name=f'SSL_{DATASET}'
     )
 
 def ss_model(loss_function = "sparse_categorical_crossentropy",
@@ -63,37 +65,15 @@ supervised_percentage = 0.1
 def load_path_in_tensor(path):
     return torch.tensor(np.array(torch.load(path)))
 
-if DATASET == "gpt_writing":
-    train_data = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_train.jsonl")
-    train_labels = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_train_labels.pt")
+train_data, train_labels, val_data, val_labels, test_data, test_labels = get_dataset(DATASET)
 
-    val_data = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_val.jsonl")
-    val_labels = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_val_labels.pt")
+print(type(train_data))
 
-    test_data = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_test.jsonl")
-    test_labels = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_test_labels.pt")
+train_data = torch.nn.functional.normalize(train_data)
+val_data = torch.nn.functional.normalize(val_data)
+test_data = torch.nn.functional.normalize(test_data)
 
-if DATASET == "monolingual_davinci":
-    train_data = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train.jsonl")
-    train_labels = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train_labels.pt")
-
-    val_data = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_val.jsonl")
-    val_labels = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_val_labels.pt")
-
-    test_data = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_test.jsonl")
-    test_labels = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_test_labels.pt")
-
-if DATASET == "GPT2":
-    train_data = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_train.jsonl")
-    train_labels = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_train_labels.pt")
-
-    val_data = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_val.jsonl")
-    val_labels = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_val_labels.pt")
-
-    test_data = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_test.jsonl")
-    test_labels = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_test_labels.pt")
-
-
+print(type(train_data))
 
 supervised_train_data = train_data[:int(supervised_percentage * len(train_data))]
 supervised_train_labels = train_labels[:int(supervised_percentage * len(train_labels))]
@@ -104,7 +84,7 @@ validation_set = (val_data, val_labels)
 
 model = ss_model()
 
-for i in range(50):
+for i in range(20):
     # ---------------
     # generate pseudo labels
 

@@ -4,8 +4,8 @@ import torch
 import numpy as np
 
 # Take a sample of embeddings
-train_data = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train.jsonl")))
-train_labels = torch.tensor(np.array(torch.load("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train_labels.pt")))
+train_data = torch.tensor(np.array(torch.load("Datasets/GPT2_standardized_embedded/gpt2_complete.jsonl")))
+train_labels = torch.tensor(np.array(torch.load("Datasets/GPT2_standardized_embedded/gpt2_complete_labels.pt")))
 
 
 sample_data = train_data.numpy()

@@ -4,15 +4,18 @@ import tensorflow as tf
 import torch
 import numpy as np
 
-DATASET1 = "GPT2"  # Current options: "gpt_writing", "GPT2", "monolingual_davinci"
-DATASET2 = "monolingual_davinci"
+from data_utils import get_dataset
+
+DATASET1 = "Ghostbusters_all"  # options: "Ghostbusters_all", "gpt_writing", "monolingual_davinci", "GPT2", "SemEval_complete"
+DATASET2 = "SemEval_complete"
+
 WANDB_ENABLED = True
 if WANDB_ENABLED:
     import wandb
 
     run = wandb.init(
-        project="SSL_Roberta_compare",
-        name=f'27-05-{DATASET1}-{DATASET2}'
+        project="30-05-comparisons",
+        name=f'SSL_AB_{DATASET1}_{DATASET2}'
     )
 
 def ss_model(loss_function = "sparse_categorical_crossentropy",
@@ -60,41 +63,6 @@ supervised_percentage = 0.1
 #     # normalized_embeddings = (embeddings - mean) / (std + 1e-8)
 #     # return normalized_embeddings
 
-def load_path_in_tensor(path):
-    return torch.tensor(np.array(torch.load(path)))
-
-def get_dataset(dataset_name):
-    if dataset_name == "gpt_writing":
-        train_data = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_train.jsonl")
-        train_labels = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_train_labels.pt")
-
-        val_data = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_val.jsonl")
-        val_labels = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_val_labels.pt")
-
-        test_data = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_test.jsonl")
-        test_labels = load_path_in_tensor("Datasets/Ghostbusters_standardized_embedded/gpt_writing_test_labels.pt")
-    elif dataset_name == "monolingual_davinci":
-        train_data = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train.jsonl")
-        train_labels = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_train_labels.pt")
-
-        val_data = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_val.jsonl")
-        val_labels = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_val_labels.pt")
-
-        test_data = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_test.jsonl")
-        test_labels = load_path_in_tensor("Datasets/SemEval_standardized_embedded/monolingual/monolingual_davinci_test_labels.pt")
-    elif dataset_name == "GPT2":
-        train_data = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_train.jsonl")
-        train_labels = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_train_labels.pt")
-
-        val_data = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_val.jsonl")
-        val_labels = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_val_labels.pt")
-
-        test_data = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_test.jsonl")
-        test_labels = load_path_in_tensor("Datasets/GPT2_standardized_embedded/gpt2_test_labels.pt")
-    else:
-        raise ValueError(f"Unknown dataset: {dataset_name}")
-    return train_data, train_labels, val_data, val_labels, test_data, test_labels
-
 train_data_A, train_labels_A, val_data_A, val_labels_A, _, _ = get_dataset(DATASET1)
 
 if DATASET1 == DATASET2: # use validation set of dataset A for dataset B if they are the same to prevent duplicate data.
@@ -102,6 +70,9 @@ if DATASET1 == DATASET2: # use validation set of dataset A for dataset B if they
 else:
     train_data_B, train_labels_B, _, _, _, _ = get_dataset(DATASET2)
 
+# train_data_A = torch.nn.functional.normalize(train_data_A)
+# val_data_A = torch.nn.functional.normalize(val_data_A)
+# train_data_B = torch.nn.functional.normalize(train_data_B)
 
 supervised_train_data = train_data_A[:int(supervised_percentage * len(train_data_A))]
 supervised_train_labels = train_labels_A[:int(supervised_percentage * len(train_labels_A))]
@@ -112,7 +83,7 @@ validation_set = (val_data_A, val_labels_A)
 
 model = ss_model()
 
-for i in range(50):
+for i in range(20):
     # ---------------
     # generate pseudo labels
 
@@ -123,7 +94,7 @@ for i in range(50):
     max_probs, predicted_labels = torch.max(pred_probs, dim=1)
 
     # Filter for high-confidence predictions (>= 0.8)
-    confident_mask = max_probs >= 0.95
+    confident_mask = max_probs >= 0.995
     num_confident = confident_mask.sum().item()
     pseudo_labels = predicted_labels[confident_mask].unsqueeze(1)
     data_pseudo_labeled = unsupervised_train_data[confident_mask]

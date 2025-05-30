@@ -43,7 +43,7 @@ def classify_text(text):
         prediction = classifier(pooled)
     return prediction.item()
 
-def embed_layer(text, layer=-2): # second to last layer, kinda arbitrarily chosen for now
+def embed_layer(text, layer=-2): # layer kinda arbitrarily chosen for now
     inputs = tokenizer(text, return_tensors='pt', truncation=True, padding=True)
     with torch.no_grad():
         outputs = roberta(**inputs, output_hidden_states=True)
@@ -55,7 +55,7 @@ def embed_layer(text, layer=-2): # second to last layer, kinda arbitrarily chose
 # Embed the data
 import pandas as pd
 
-data_version = "monolingual_davinci"  # change this to the desired dataset version
+data_version = "Ghostbusters_all"  # change this to the desired dataset version
 AMT_TO_EMBED = 5000
 
 if data_version == "gpt_writing":
@@ -64,10 +64,22 @@ if data_version == "gpt_writing":
                    "Datasets/Ghostbusters_standardized/gpt_writing_val.jsonl"]
     output_folder = "Datasets/Ghostbusters_standardized_embedded"
 
+if data_version == "Ghostbusters_all":
+    input_files = ["Datasets/Ghostbusters_standardized/ghostbusters_ALL_train.jsonl",
+                   "Datasets/Ghostbusters_standardized/ghostbusters_ALL_test.jsonl",
+                   "Datasets/Ghostbusters_standardized/ghostbusters_ALL_val.jsonl"]
+    output_folder = "Datasets/Ghostbusters_standardized_embedded"
+
 if data_version == "monolingual_davinci":
     input_files = ["Datasets/SemEval_standardized/monolingual/monolingual_davinci_train.jsonl",
                 "Datasets/SemEval_standardized/monolingual/monolingual_davinci_test.jsonl",
                 "Datasets/SemEval_standardized/monolingual/monolingual_davinci_val.jsonl"]
+    output_folder = "Datasets/SemEval_standardized_embedded/monolingual"
+
+if data_version == "monolingual_complete":
+    input_files = ["Datasets/SemEval_standardized/monolingual/monolingual_complete_train.jsonl",
+                "Datasets/SemEval_standardized/monolingual/monolingual_complete_test.jsonl",
+                "Datasets/SemEval_standardized/monolingual/monolingual_complete_val.jsonl"]
     output_folder = "Datasets/SemEval_standardized_embedded/monolingual"
 
 if data_version == "GPT2":
@@ -77,6 +89,7 @@ if data_version == "GPT2":
                    "Datasets/GPT2_standardized/gpt2_train.jsonl"]
     output_folder = "Datasets/GPT2_standardized_embedded"
 
+print("WARNING TO FUTURE ME: LAYER=-2")
 for input_file in input_files:
     jsonObj = pd.read_json(path_or_buf=input_file, lines=True)
     jsonObj = jsonObj.reset_index(drop=True)

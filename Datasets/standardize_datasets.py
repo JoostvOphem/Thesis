@@ -16,7 +16,7 @@ random.seed(42)  # For reproducibility
 TRAIN_PERCENT, VAL_PERCENT, TEST_PERCENT = 0.7, 0.15, 0.15
 STANDARDIZE_GHOSTBUSTERS = False
 STANDARDIZE_SEMEVAL = False
-STANDARDIZE_GPT2 = True
+STANDARDIZE_GPT2 = False
 
 ### HELPER FUNCTIONS ###
 
@@ -103,6 +103,45 @@ def create_jsonl_dataset(texts, labels, output_files, dataset_name='', shuffle=T
 ### GHOSTBUSTERS ###
 # For ghostbusters this will specifically look at essay/claude for AI text and essay/human for human text
 
+def fully_standardize_ghostbusters():
+    AI_types = ['claude', 'gpt', 'gpt_prompt1', 'gpt_prompt2', 'gpt_semantic', 'gpt_writing']
+    texts = []
+    labels = []
+    for AI_type in AI_types:
+        AI_Paths = find_writing_sessions(f'Datasets/GhostBusters/ghostbuster-data-master/essay/{AI_type}')
+        for path in AI_Paths:
+            with open(path, 'r') as f:
+                text = f.read()
+                text = text.replace('\n\n', '\n')
+                texts.append(text)
+                labels.append(1)  # AI text is labeled as 1
+    human_paths = find_writing_sessions('Datasets/GhostBusters/ghostbuster-data-master/essay/human')
+    for path in human_paths:
+        with open(path, 'r') as f:
+            text = f.read()
+            text = text.replace('\n\n', '\n')
+            texts.append(text)
+            labels.append(0)
+    # Create the standardized dataset
+    output_files = [
+        'Datasets/GhostBusters_standardized/ghostbusters_ALL_train.jsonl',
+        'Datasets/GhostBusters_standardized/ghostbusters_ALL_val.jsonl',
+        'Datasets/GhostBusters_standardized/ghostbusters_ALL_test.jsonl',
+        'Datasets/GhostBusters_standardized/ghostbusters_ALL_complete.jsonl'
+    ]
+    create_jsonl_dataset(texts,
+                        labels,
+                        output_files,
+                        dataset_name='ghostbusters_complete'
+                        )
+    print("GHOSTBUSTERS dataset: essays")
+    print(f"AI paths: {len(AI_types)}")
+    print(f"Human paths: {len(human_paths)}")
+    print()
+    
+    print("---- GHOSTBUSTERS dataset essay COMPLETE standardized ----\n")
+    return
+
 def standardize_ghostbusters_essay(AI_type):
     if AI_type not in ['claude', 'gpt', 'gpt_prompt1', 'gpt_prompt2', 'gpt_semantic', 'gpt_writing']:
         raise ValueError("AI type must be one of: 'claude', 'gpt', 'gpt_prompt1', 'gpt_prompt2', 'gpt_semantic', 'gpt_writing'")
@@ -149,6 +188,7 @@ def standardize_ghostbusters_essay(AI_type):
 if STANDARDIZE_GHOSTBUSTERS:
     for AI_type in ['claude', 'gpt', 'gpt_prompt1', 'gpt_prompt2', 'gpt_semantic', 'gpt_writing']:
         standardize_ghostbusters_essay(AI_type)
+    fully_standardize_ghostbusters()
     
     print("---- GHOSTBUSTERS dataset essays standardized ----\n")
 else:
@@ -206,12 +246,12 @@ if STANDARDIZE_SEMEVAL:
         all_texts.extend(human_texts)
         all_labels.extend(human_labels)
 
-        AI_texts = []
-        AI_labels = []
         for model in model_types:
             if model == 'human':
                 continue
-
+            AI_texts = []
+            AI_labels = []
+            
             for i in range(len(train_monolingual['text'])):
                 if train_monolingual['model'][i] == model:
                     AI_texts.append(train_monolingual['text'][i])
@@ -227,6 +267,8 @@ if STANDARDIZE_SEMEVAL:
             
             texts = human_texts + AI_texts
             labels = human_labels + AI_labels
+
+            print(len(texts), len(labels))
 
             create_jsonl_dataset(
                 texts, 
