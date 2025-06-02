@@ -66,13 +66,11 @@ def prepare_texts_labels():
     #     texts.append(text)
     #     labels.append(0)
     
-    # # shuffle texts
-    # indices = random.sample(range(len(labels)), len(labels))
-    # texts = [texts[i] for i in indices]
-    # labels = [labels[i] for i in indices]
+    # shuffle texts
+    indices = random.sample(range(len(labels)), len(labels))
+    texts = [texts[i] for i in indices]
+    labels = [labels[i] for i in indices]
 
-    random.shuffle(texts)
-    random.shuffle(labels)
     return texts, labels
 
 
@@ -112,7 +110,7 @@ tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
 
 inputs = tokenizer(texts, padding=True, truncation=True, return_tensors='pt')
 dataset = TensorDataset(inputs['input_ids'], inputs['attention_mask'], labels)
-dataloader = DataLoader(dataset, batch_size=16, shuffle=True) # TODO: change to 8
+dataloader = DataLoader(dataset, batch_size=8, shuffle=True) # TODO: change to 8
 
 model = RobertaWithClassifier()
 model.train()
