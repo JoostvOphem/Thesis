@@ -95,7 +95,7 @@ for i in range(20):
     max_probs, predicted_labels = torch.max(pred_probs, dim=1)
 
     # Filter for high-confidence predictions (>= 0.8)
-    confident_mask = max_probs >= 0.95
+    confident_mask = max_probs >= 0.99
     num_confident = confident_mask.sum().item()
     pseudo_labels = predicted_labels[confident_mask].unsqueeze(1)
     data_pseudo_labeled = unsupervised_train_data[confident_mask]

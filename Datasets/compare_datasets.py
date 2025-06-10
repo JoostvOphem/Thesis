@@ -189,7 +189,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-def create_distance_heatmap(distance_matrix, ai_types, location='Figures/ghostbusters_distance_heatmap.png'):
+def create_distance_heatmap(distance_matrix, ai_types, location='Figures/ghostbusters_distance_heatmap.png', numbers=True):
     """
     Create a heatmap visualization of dataset distances.
     
@@ -201,7 +201,7 @@ def create_distance_heatmap(distance_matrix, ai_types, location='Figures/ghostbu
     
     # Create heatmap
     sns.heatmap(distance_matrix, 
-                annot=True,  # Show numeric values
+                annot=numbers,  # Show numeric values
                 cmap='YlGnBu',  # Color palette
                 xticklabels=ai_types, 
                 yticklabels=ai_types,
@@ -220,7 +220,8 @@ def create_distance_heatmap(distance_matrix, ai_types, location='Figures/ghostbu
     plt.tight_layout()
     
     # Save the plot
-    plt.savefig(location, dpi=300, bbox_inches='tight')
+    file_extension = location.split('.')[-1]
+    plt.savefig(location, format=file_extension, bbox_inches='tight')
     plt.close()
 
 def shrink_dataset(dataset, size=100):
@@ -237,7 +238,8 @@ def compare_datasets_with_themselves(
         AI_types = ['claude', 'gpt', 'gpt_prompt1', 'gpt_prompt2', 'gpt_semantic', 'gpt_writing'], # AI types to compare, standard is all for ghostbusters
         version='complete', # versions: complete, dev, test, train
         heatmap_location='Figures/ghostbusters_distance_heatmap.png', # location to save the heatmap,
-        method='Wasserstein' # method to use for distance calculation, options: 'Wasserstein', 'Cosine'
+        method='Wasserstein', # method to use for distance calculation, options: 'Wasserstein', 'Cosine',
+        numbers=True # whether to show numbers on the heatmap
         ):
     
     distance_matrix = torch.zeros(len(AI_types), len(AI_types))
@@ -265,52 +267,203 @@ def compare_datasets_with_themselves(
     # Create a heatmap of the distances
     print("Distance matrix:")
     print(distance_matrix)
-    create_distance_heatmap(distance_matrix.numpy(), AI_types, location=heatmap_location)
+    create_distance_heatmap(distance_matrix.numpy(), AI_types, location=heatmap_location, numbers=numbers)
 
 def compare_datasets_with_eachother(
-        dataset_paths,
-        AI_types_list,
-        version='complete', # versions: complete, dev, test, train
-        heatmap_location='Figures/meta-heatmap.png', # location to save the heatmap
-        method='Wasserstein' # method to use for distance calculation, options: 'Wasserstein', 'Cosine'
-        ):
-    
+    dataset_paths,
+    AI_types_list,
+    version='complete', # versions: complete, dev, test, train
+    heatmap_location='Figures/meta-heatmap.png', # location to save the heatmap
+    method='Wasserstein', # method to use for distance calculation, options: 'Wasserstein', 'Cosine'
+    numbers=True
+):
     all_AI_types = []
     all_paths = []
-    for AI_types in AI_types_list:
+    dataset_indices = []  # Track which dataset each AI type belongs to
+    
+    for dataset_idx, AI_types in enumerate(AI_types_list):
         all_AI_types.extend(AI_types)
-
+        dataset_indices.extend([dataset_idx] * len(AI_types))
+        
     for (dataset_path, AI_types) in zip(dataset_paths, AI_types_list):
         for AI_type in AI_types:
             all_paths.append(f'{dataset_path}/{AI_type}_{version}.jsonl')
     
     distance_matrix = torch.zeros(len(all_paths), len(all_paths))
     
+    # First pass: calculate all pairwise distances
     for i, path1 in enumerate(all_paths):
         for j, path2 in enumerate(all_paths):
             if i > j: # no need to calculate twice
                 continue
             if i == j:
-                distance_matrix[i, j] = 0 
-                # if same dataset, distance is 0 (also true when actually running the code. This just reduces the number of calculations)
+                distance_matrix[i, j] = 0
                 continue
+                
             dataset1 = read_jsonl_dataset(path1)
             dataset1 = shrink_dataset(dataset1, 100)
-
             dataset2 = read_jsonl_dataset(path2)
             dataset2 = shrink_dataset(dataset2, 100)
-
             distance = get_difference_between_datasets(dataset1, dataset2, method=method)
             distance_matrix[i,j] = distance
             distance_matrix[j,i] = distance
             print(path1, path2, distance.item())
+    
+    # Second pass: calculate dataset averages for lower triangle
+    num_datasets = len(dataset_paths)
+    dataset_avg_matrix = torch.zeros(num_datasets, num_datasets)
+    
+    # Calculate average distances between datasets
+    for dataset_i in range(num_datasets):
+        for dataset_j in range(num_datasets):
+            # Find all AI types for each dataset
+            indices_i = [k for k, d in enumerate(dataset_indices) if d == dataset_i]
+            indices_j = [k for k, d in enumerate(dataset_indices) if d == dataset_j]
+            
+            # Calculate average distance between all pairs (excluding same AI type comparisons)
+            distances = []
+            for idx_i in indices_i:
+                for idx_j in indices_j:
+                    # Skip comparisons where the AI type names are the same
+                    if all_AI_types[idx_i] != all_AI_types[idx_j]:
+                        distances.append(distance_matrix[idx_i, idx_j].item())
+            
+            if len(distances) > 0:
+                dataset_avg_matrix[dataset_i, dataset_j] = sum(distances) / len(distances)
+            else:
+                dataset_avg_matrix[dataset_i, dataset_j] = 0
+    
+    # Modify distance_matrix: keep upper triangle as is, replace lower triangle with dataset averages
+    for i in range(len(all_paths)):
+        for j in range(len(all_paths)):
+            if i > j:  # Lower triangle
+                dataset_i = dataset_indices[i]
+                dataset_j = dataset_indices[j]
+                distance_matrix[i, j] = dataset_avg_matrix[dataset_i, dataset_j]
+    
+    create_distance_heatmap(distance_matrix.numpy(), all_AI_types, location=heatmap_location, numbers=numbers)
+# def compare_datasets_with_eachother(
+#     dataset_paths,
+#     AI_types_list,
+#     version='complete', # versions: complete, dev, test, train
+#     heatmap_location='Figures/meta-heatmap.png', # location to save the heatmap
+#     method='Wasserstein', # method to use for distance calculation, options: 'Wasserstein', 'Cosine'
+#     numbers=True
+# ):
+#     all_AI_types = []
+#     all_paths = []
+#     dataset_indices = []  # Track which dataset each AI type belongs to
+    
+#     for dataset_idx, AI_types in enumerate(AI_types_list):
+#         all_AI_types.extend(AI_types)
+#         dataset_indices.extend([dataset_idx] * len(AI_types))
+        
+#     for (dataset_path, AI_types) in zip(dataset_paths, AI_types_list):
+#         for AI_type in AI_types:
+#             all_paths.append(f'{dataset_path}/{AI_type}_{version}.jsonl')
+    
+#     distance_matrix = torch.zeros(len(all_paths), len(all_paths))
+    
+#     # First pass: calculate all pairwise distances
+#     for i, path1 in enumerate(all_paths):
+#         for j, path2 in enumerate(all_paths):
+#             if i > j: # no need to calculate twice
+#                 continue
+#             if i == j:
+#                 distance_matrix[i, j] = 0
+#                 continue
+                
+#             dataset1 = read_jsonl_dataset(path1)
+#             dataset1 = shrink_dataset(dataset1, 100)
+#             dataset2 = read_jsonl_dataset(path2)
+#             dataset2 = shrink_dataset(dataset2, 100)
+#             distance = get_difference_between_datasets(dataset1, dataset2, method=method)
+#             distance_matrix[i,j] = distance
+#             distance_matrix[j,i] = distance
+#             print(path1, path2, distance.item())
+    
+#     # Second pass: calculate dataset averages for lower triangle
+#     num_datasets = len(dataset_paths)
+#     dataset_avg_matrix = torch.zeros(num_datasets, num_datasets)
+    
+#     # Calculate average distances between datasets
+#     for dataset_i in range(num_datasets):
+#         for dataset_j in range(num_datasets):
+#             if dataset_i == dataset_j:
+#                 dataset_avg_matrix[dataset_i, dataset_j] = 0
+#                 continue
+                
+#             # Find all AI types for each dataset
+#             indices_i = [k for k, d in enumerate(dataset_indices) if d == dataset_i]
+#             indices_j = [k for k, d in enumerate(dataset_indices) if d == dataset_j]
+            
+#             # Calculate average distance between all pairs
+#             distances = []
+#             for idx_i in indices_i:
+#                 for idx_j in indices_j:
+#                     # if idx_i == idx_j:
+#                     #     continue
+#                     distances.append(distance_matrix[idx_i, idx_j].item())
+            
+#             if len(distances) != 0: # Avoid division by zero in GPT2-GPT2 edge case of only having one AI type in the dataset
+#                 dataset_avg_matrix[dataset_i, dataset_j] = sum(distances) / len(distances)
+    
+#     # Modify distance_matrix: keep upper triangle as is, replace lower triangle with dataset averages
+#     for i in range(len(all_paths)):
+#         for j in range(len(all_paths)):
+#             if i > j:  # Lower triangle
+#                 dataset_i = dataset_indices[i]
+#                 dataset_j = dataset_indices[j]
+#                 distance_matrix[i, j] = dataset_avg_matrix[dataset_i, dataset_j]
+    
+#     create_distance_heatmap(distance_matrix.numpy(), all_AI_types, location=heatmap_location, numbers=numbers)
+#     return
 
-    create_distance_heatmap(distance_matrix.numpy(), all_AI_types, location=heatmap_location)
-    return
+# def compare_datasets_with_eachother(
+#         dataset_paths,
+#         AI_types_list,
+#         version='complete', # versions: complete, dev, test, train
+#         heatmap_location='Figures/meta-heatmap.png', # location to save the heatmap
+#         method='Wasserstein', # method to use for distance calculation, options: 'Wasserstein', 'Cosine'
+#         numbers=True
+#         ):
+    
+#     all_AI_types = []
+#     all_paths = []
+#     for AI_types in AI_types_list:
+#         all_AI_types.extend(AI_types)
+
+#     for (dataset_path, AI_types) in zip(dataset_paths, AI_types_list):
+#         for AI_type in AI_types:
+#             all_paths.append(f'{dataset_path}/{AI_type}_{version}.jsonl')
+    
+#     distance_matrix = torch.zeros(len(all_paths), len(all_paths))
+    
+#     for i, path1 in enumerate(all_paths):
+#         for j, path2 in enumerate(all_paths):
+#             if i > j: # no need to calculate twice
+#                 continue
+#             if i == j:
+#                 distance_matrix[i, j] = 0 
+#                 # if same dataset, distance is 0 (also true when actually running the code. This just reduces the number of calculations)
+#                 continue
+#             dataset1 = read_jsonl_dataset(path1)
+#             dataset1 = shrink_dataset(dataset1, 100)
+
+#             dataset2 = read_jsonl_dataset(path2)
+#             dataset2 = shrink_dataset(dataset2, 100)
+
+#             distance = get_difference_between_datasets(dataset1, dataset2, method=method)
+#             distance_matrix[i,j] = distance
+#             distance_matrix[j,i] = distance
+#             print(path1, path2, distance.item())
+
+#     create_distance_heatmap(distance_matrix.numpy(), all_AI_types, location=heatmap_location, numbers=numbers)
+#     return
 
     
 if __name__ == "__main__":
-    method = 'Wasserstein' # options: 'Wasserstein', 'Cosine', 'Vocabulary_Overlap', 'Topic_Model', 'TF-IDF'
+    method = 'Cosine' # options: 'Wasserstein', 'Cosine', 'Vocabulary_Overlap', 'Topic_Model', 'TF-IDF'
     version = 'complete'
 
     # compare_datasets_with_themselves(
@@ -341,16 +494,19 @@ if __name__ == "__main__":
         dataset_paths=[
             'Datasets/Ghostbusters_standardized',
             'Datasets/SemEval_standardized/monolingual',
-            'Datasets/SemEval_standardized/multilingual'
+            'Datasets/SemEval_standardized/multilingual',
+            'Datasets/GPT2_standardized'
         ],
         AI_types_list=[
             ['claude', 'gpt', 'gpt_prompt1', 'gpt_prompt2', 'gpt_semantic', 'gpt_writing'],
             ['monolingual_'+ai_type for ai_type in ['bloomz', 'chatGPT', 'cohere', 'complete', 'davinci', 'dolly', 'GPT4']],
-            ['multilingual_'+ai_type for ai_type in ['bloomz', 'chatGPT', 'cohere', 'complete', 'davinci', 'dolly', 'GPT4']]
+            ['multilingual_'+ai_type for ai_type in ['bloomz', 'chatGPT', 'cohere', 'complete', 'davinci', 'dolly', 'GPT4']],
+            ['gpt2']
         ],
         version=version,
-        heatmap_location=f'Figures/meta_{method}-heatmap.png',
-        method=method
+        heatmap_location=f'Figures/meta_{method}-heatmap-nonumbers-avgd.pdf',
+        method=method,
+        numbers=False
     )
 
     pass

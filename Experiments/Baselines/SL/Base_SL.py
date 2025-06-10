@@ -44,7 +44,7 @@ def s_model(loss_function = "sparse_categorical_crossentropy",
             
             # Third layer: Final feature extraction
             # tf.keras.layers.Dense(64, activation="relu"),
-            tf.keras.layers.Dropout(0.1),
+            # tf.keras.layers.Dropout(0.1),
             
             # Output layer
             tf.keras.layers.Dense(2, activation="softmax")
