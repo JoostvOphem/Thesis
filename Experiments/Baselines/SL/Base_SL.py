@@ -9,14 +9,16 @@ import scipy
 from data_utils import get_dataset
 
 
-DATASET = "Ghostbusters_all"  # options: "gpt_writing", "monolingual_davinci", "GPT2", "Ghostbusters_all", "SemEval_complete"
+DATASET = "Ghostbusters_ALL"  # options: "gpt_writing", "monolingual_davinci", "GPT2", "Ghostbusters_all", "SemEval_complete"
+ROBERTA_USED = "Ghostbusters_ALL"
+
 WANDB_ENABLED = True
 if WANDB_ENABLED:
     import wandb
 
     run = wandb.init(
-        project="30-05-comparisons",
-        name=f'SL_{DATASET}'
+        project="10-06-comparisons",
+        name=f'SL_{DATASET}_{ROBERTA_USED}'
     )
 
 def s_model(loss_function = "sparse_categorical_crossentropy",
@@ -76,7 +78,7 @@ def label_data(path):
 def load_path_in_tensor(path):
     return torch.tensor(np.array(torch.load(path)))
 
-train_data, train_labels, val_data, val_labels, test_data, test_labels = get_dataset(DATASET)
+train_data, train_labels, val_data, val_labels, test_data, test_labels = get_dataset(DATASET, roberta_used=ROBERTA_USED)
 
 # shuffle the data
 def shuffle_data(data, labels):
@@ -126,8 +128,6 @@ for i in range(20):
     # by checking to see if the validation set's first 10 predictions are not all the same
     predictions = model.predict(validation_set[0])
     predicted_labels = np.argmax(predictions, axis=1)
-    print(predicted_labels[:10])
-    print(val_labels[:10])
 
     # ---------------
 

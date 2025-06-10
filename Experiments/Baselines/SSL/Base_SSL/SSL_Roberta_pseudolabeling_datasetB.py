@@ -8,6 +8,8 @@ from data_utils import get_dataset
 
 DATASET1 = "Ghostbusters_all"  # options: "Ghostbusters_all", "gpt_writing", "monolingual_davinci", "GPT2", "SemEval_complete"
 DATASET2 = "SemEval_complete"
+ROBERTA_USED = "Ghostbusters_all"
+
 
 WANDB_ENABLED = True
 if WANDB_ENABLED:
@@ -63,12 +65,12 @@ supervised_percentage = 0.1
 #     # normalized_embeddings = (embeddings - mean) / (std + 1e-8)
 #     # return normalized_embeddings
 
-train_data_A, train_labels_A, val_data_A, val_labels_A, _, _ = get_dataset(DATASET1)
+train_data_A, train_labels_A, val_data_A, val_labels_A, _, _ = get_dataset(DATASET1, ROBERTA_USED)
 
 if DATASET1 == DATASET2: # use validation set of dataset A for dataset B if they are the same to prevent duplicate data.
-    _, _, _, _, train_data_B, train_labels_B = get_dataset(DATASET2)
+    _, _, _, _, train_data_B, train_labels_B = get_dataset(DATASET2, ROBERTA_USED)
 else:
-    train_data_B, train_labels_B, _, _, _, _ = get_dataset(DATASET2)
+    train_data_B, train_labels_B, _, _, _, _ = get_dataset(DATASET2, ROBERTA_USED)
 
 # train_data_A = torch.nn.functional.normalize(train_data_A)
 # val_data_A = torch.nn.functional.normalize(val_data_A)

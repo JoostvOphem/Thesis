@@ -10,6 +10,9 @@ from data_utils import get_dataset
 
 DATASET1 = "Ghostbusters_all"  # options: "gpt_writing", "monolingual_davinci", "GPT2", "Ghostbusters_all", "SemeVal_complete"
 DATASET2 = "SemEval_complete"
+ROBERTA_USED = "Ghostbusters_all"
+
+
 WANDB_ENABLED = True
 if WANDB_ENABLED:
     import wandb
@@ -76,8 +79,8 @@ def label_data(path):
 def load_path_in_tensor(path):
     return torch.tensor(np.array(torch.load(path)))
 
-train_dataA, train_labelsA, val_dataA, val_labelsA, test_dataA, test_labelsA = get_dataset(DATASET1)
-train_dataB, train_labelsB, val_dataB, val_labelsB, test_dataB, test_labelsB = get_dataset(DATASET2)
+train_dataA, train_labelsA, val_dataA, val_labelsA, test_dataA, test_labelsA = get_dataset(DATASET1, ROBERTA_USED)
+train_dataB, train_labelsB, val_dataB, val_labelsB, test_dataB, test_labelsB = get_dataset(DATASET2, ROBERTA_USED)
 # Concatenate datasets
 train_data = np.concatenate((train_dataA, train_dataB), axis=0)
 train_labels = np.concatenate((train_labelsA, train_labelsB), axis=0)

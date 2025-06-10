@@ -10,6 +10,8 @@ from data_utils import get_dataset
 
 
 DATASET = "Ghostbusters_all"  # options: "gpt_writing", "monolingual_davinci", "GPT2", "Ghostbusters_all", "SemeVal_complete"
+ROBERTA_USED = "Ghostbusters_all"
+
 TEST_DATASET = "SemeVal_complete"
 WANDB_ENABLED = True
 if WANDB_ENABLED:
@@ -77,8 +79,8 @@ def label_data(path):
 def load_path_in_tensor(path):
     return torch.tensor(np.array(torch.load(path)))
 
-train_data, train_labels, val_data, val_labels, _, _ = get_dataset(DATASET)
-_, _, _, _, test_data, test_labels = get_dataset(TEST_DATASET)
+train_data, train_labels, val_data, val_labels, _, _ = get_dataset(DATASET, ROBERTA_USED)
+_, _, _, _, test_data, test_labels = get_dataset(TEST_DATASET, ROBERTA_USED)
 
 # shuffle the data
 def shuffle_data(data, labels):

@@ -8,6 +8,8 @@ from data_utils import get_dataset
 
 DATASET1 = "Ghostbusters_all"  # options: "Ghostbusters_all", "gpt_writing", "monolingual_davinci", "GPT2", "SemEval_complete"
 DATASET2 = "SemEval_complete"
+ROBERTA_USED = "Ghostbusters_all"
+
 
 WANDB_ENABLED = True
 if WANDB_ENABLED:
@@ -56,8 +58,8 @@ def ss_model(loss_function = "sparse_categorical_crossentropy",
 
 supervised_percentage = 0.1
 
-train_data_A, train_labels_A, val_data_A, val_labels_A, test_data_A, test_labels_A = get_dataset(DATASET1)
-train_data_B, train_labels_B, val_data_B, val_labels_B, tetst_data_B, test_labels_B = get_dataset(DATASET2)
+train_data_A, train_labels_A, val_data_A, val_labels_A, test_data_A, test_labels_A = get_dataset(DATASET1, ROBERTA_USED)
+train_data_B, train_labels_B, val_data_B, val_labels_B, tetst_data_B, test_labels_B = get_dataset(DATASET2, ROBERTA_USED)
 
 # append the two tensors
 def append_and_shuffle(tensor1, tensor2, indices=None):

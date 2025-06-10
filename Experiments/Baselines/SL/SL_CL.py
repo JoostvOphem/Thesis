@@ -8,6 +8,8 @@ from data_utils import get_dataset
 
 DATASET = "Ghostbusters_all"  # options: "gpt_writing", "monolingual_davinci", "GPT2", "Ghostbusters_all", "SemeVal_complete"
 TEST_DATASET = "SemEval_complete"
+ROBERTA_USED = "Ghostbusters_all"
+
 WANDB_ENABLED = True
 if WANDB_ENABLED:
     import wandb
@@ -159,8 +161,8 @@ def consistency_training_step_advanced(model, data, consistency_weight, optimize
     
     return consistency_losses
 
-train_data, train_labels, val_data, val_labels, test_data_A, test_labels_A = get_dataset(DATASET)
-_, _, _, _, test_data_B, test_labels_B = get_dataset(TEST_DATASET)
+train_data, train_labels, val_data, val_labels, test_data_A, test_labels_A = get_dataset(DATASET, ROBERTA_USED)
+_, _, _, _, test_data_B, test_labels_B = get_dataset(TEST_DATASET, ROBERTA_USED)
 
 # shuffle the data
 def shuffle_data(data, labels):

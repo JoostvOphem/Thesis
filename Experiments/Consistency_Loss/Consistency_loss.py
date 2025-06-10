@@ -9,6 +9,7 @@ from data_utils import get_dataset
 
 DATASET1 = "Ghostbusters_all"  # options: "gpt_writing", "monolingual_davinci", "GPT2", "Ghostbusters_all", "SemEval_complete"
 DATASET2 = "SemEval_complete"
+ROBERTA_USED = "Ghostbusters_all"
 
 NORMALIZED = False 
 
@@ -264,12 +265,12 @@ supervised_percentage = 0.1
 def load_path_in_tensor(path):
     return torch.tensor(np.array(torch.load(path)))
 
-train_data_A, train_labels_A, val_data_A, val_labels_A, test_data_A, test_labels_A = get_dataset(DATASET1)
+train_data_A, train_labels_A, val_data_A, val_labels_A, test_data_A, test_labels_A = get_dataset(DATASET1, ROBERTA_USED)
 
 if DATASET1 == DATASET2: # use validation set of dataset A for dataset B if they are the same to prevent duplicate data.
-    _, _, test_data_B, test_labels_B, train_data_B, train_labels_B = get_dataset(DATASET2)
+    _, _, test_data_B, test_labels_B, train_data_B, train_labels_B = get_dataset(DATASET2, ROBERTA_USED)
 else:
-    train_data_B, train_labels_B, _, _, test_data_B, test_labels_B = get_dataset(DATASET2)
+    train_data_B, train_labels_B, _, _, test_data_B, test_labels_B = get_dataset(DATASET2, ROBERTA_USED)
 
 
 supervised_train_data = train_data_A[:int(supervised_percentage * len(train_data_A))]

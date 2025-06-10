@@ -8,6 +8,8 @@ from data_utils import get_dataset
 
 
 DATASET = "Ghostbusters_all"  # options: "Ghostbusters_all", "gpt_writing", "monolingual_davinci", "GPT2"
+ROBERTA_USED = "Ghostbusters_all"
+
 WANDB_ENABLED = True
 if WANDB_ENABLED:
     import wandb
@@ -65,7 +67,7 @@ supervised_percentage = 0.1
 def load_path_in_tensor(path):
     return torch.tensor(np.array(torch.load(path)))
 
-train_data, train_labels, val_data, val_labels, test_data, test_labels = get_dataset(DATASET)
+train_data, train_labels, val_data, val_labels, test_data, test_labels = get_dataset(DATASET, ROBERTA_USED)
 
 print(type(train_data))
 
