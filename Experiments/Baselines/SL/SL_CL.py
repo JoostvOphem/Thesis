@@ -6,8 +6,8 @@ import json
 from data_utils import get_dataset
 
 
-DATASET = "Ghostbusters_all"  # options: "gpt_writing", "monolingual_davinci", "GPT2", "Ghostbusters_all", "SemeVal_complete"
-TEST_DATASET = "SemEval_complete"
+DATASET = "Ghostbusters_all"
+TEST_DATASET = "gpt2"
 ROBERTA_USED = "Ghostbusters_all"
 
 WANDB_ENABLED = True
@@ -15,8 +15,8 @@ if WANDB_ENABLED:
     import wandb
 
     run = wandb.init(
-        project="30-05-comparisons",
-        name=f'SL_CL_{DATASET}_{TEST_DATASET}'
+        project="CL_testing",
+        name=f'SL_CL_{DATASET}_{TEST_DATASET}_{ROBERTA_USED}'
     )
 
 def s_model(loss_function = "sparse_categorical_crossentropy",
@@ -198,14 +198,14 @@ class_weight_dict = get_class_weights(train_labels)
 print(class_weight_dict)
 
 model = s_model()
-consistency_optimizer = tf.keras.optimizers.AdamW(learning_rate=0.00001, weight_decay=0.01)
+consistency_optimizer = tf.keras.optimizers.AdamW(learning_rate=0.00001, weight_decay=0.01) # lr was 0.00001, weight decay was 0.01
 
 
 for i in range(20):
     # ---------------
     model.fit(train_data, 
               train_labels, 
-              epochs=19, 
+              epochs=9, 
               validation_data=validation_set,
               class_weight=class_weight_dict,
               batch_size=32,)
@@ -222,6 +222,8 @@ for i in range(20):
         optimizer=consistency_optimizer
     )
 
+    logged_consistency_loss = tf.reduce_mean(consistency_losses).numpy()
+
 
     test_evaluation_B = model.evaluate(test_data_B, test_labels_B)
     test_evaluation_A = model.evaluate(test_data_A, test_labels_A)
@@ -229,20 +231,19 @@ for i in range(20):
 
     # sanity check to see if the model is not just predicting the majority class
     # by checking to see if the validation set's first 10 predictions are not all the same
-    predictions = model.predict(validation_set[0])
-    predicted_labels = np.argmax(predictions, axis=1)
-    print(predicted_labels[:10])
-    print(val_labels[:10])
+    # predictions = model.predict(validation_set[0])
+    # predicted_labels = np.argmax(predictions, axis=1)
+    # print(predicted_labels[:10])
+    # print(val_labels[:10])
 
     # ---------------
 
     if WANDB_ENABLED:
         wandb.log({
-            # "test_loss_A": test_evaluation_A[0],
+            "consistency_loss": logged_consistency_loss,
+            "train_loss": test_evaluation_A[0],
             "train_accuracy": test_evaluation_A[1],
-            # "test_loss_B": test_evaluation_B[0],
+            "test_loss": test_evaluation_B[0],
             "test_accuracy": test_evaluation_B[1],
-            # "train_loss": train_evaluation[0],
-            # "train_accuracy": train_evaluation[1],
-            # "epoch": i
+            "epoch": i
         })

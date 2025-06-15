@@ -15,8 +15,8 @@ if WANDB_ENABLED:
     import wandb
 
     run = wandb.init(
-        project="30-05-comparisons",
-        name=f'SSL_{DATASET}'
+        project="10-06-comparisons",
+        name=f'SSL_{DATASET}_{ROBERTA_USED}'
     )
 
 def ss_model(loss_function = "sparse_categorical_crossentropy",
@@ -96,11 +96,26 @@ for i in range(20):
     # Get max probabilities and predicted labels
     max_probs, predicted_labels = torch.max(pred_probs, dim=1)
 
-    # Filter for high-confidence predictions (>= 0.8)
-    confident_mask = max_probs >= 0.99
+    # Filter for high-confidence predictions (>= 0.99)
+
+    entropy = -torch.sum(pred_probs * torch.log(pred_probs + 1e-8), dim=1)
+    max_entropy = torch.log(torch.tensor(2.0))  # For binary classification
+    confidence = 1 - (entropy / max_entropy)
+    confident_mask = confidence >= 0.99
+
+    # confident_mask = max_probs >= 0.99
     num_confident = confident_mask.sum().item()
     pseudo_labels = predicted_labels[confident_mask].unsqueeze(1)
     data_pseudo_labeled = unsupervised_train_data[confident_mask]
+
+    # # Get max probabilities and predicted labels
+    # max_probs, predicted_labels = torch.max(pred_probs, dim=1)
+
+    # # Filter for high-confidence predictions (>= 0.8)
+    # confident_mask = max_probs >= 0.99
+    # num_confident = confident_mask.sum().item()
+    # pseudo_labels = predicted_labels[confident_mask].unsqueeze(1)
+    # data_pseudo_labeled = unsupervised_train_data[confident_mask]
     
     # Combine labeled and pseudo-labeled data
     data_train_combined = torch.concatenate([supervised_train_data, data_pseudo_labeled], axis=0)

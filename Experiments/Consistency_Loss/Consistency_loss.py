@@ -3,12 +3,13 @@ import pandas as pd
 import tensorflow as tf
 import torch
 import numpy as np
+import math
 from transformers import RobertaModel, RobertaTokenizer
 
 from data_utils import get_dataset
 
 DATASET1 = "Ghostbusters_all"  # options: "gpt_writing", "monolingual_davinci", "GPT2", "Ghostbusters_all", "SemEval_complete"
-DATASET2 = "SemEval_complete"
+DATASET2 = "gpt2"
 ROBERTA_USED = "Ghostbusters_all"
 
 NORMALIZED = False 
@@ -31,103 +32,9 @@ if WANDB_ENABLED:
     #     name=f'30-05-{DATASET1}-{DATASET2}-{CONSISTENCY_MULTIPLIER}x_costum_loss'
     # )
     run = wandb.init(
-        project="30-05-comparisons",
-        name=f'CL_{DATASET1}_{DATASET2}'
+        project="CL_testing",
+        name=f'fucking_around_with_scheduling'
     )
-
-def consistency_training_step(model, 
-                              data, 
-                              consistency_weight, 
-                              batch_size=32, 
-                              epochs=10, 
-                              shuffle=True):
-    """
-    Performs consistency training with batching similar to model.fit()
-    
-    Args:
-        model: The TensorFlow model to train
-        data: Training data tensor
-        consistency_weight: Scalar weight for consistency loss
-        batch_size: Batch size for training (default: 32)
-        epochs: Number of epochs to train (default: 10)
-        shuffle: Whether to shuffle data each epoch (default: True)
-    
-    Returns:
-        List of consistency losses per epoch
-    """
-    
-    consistency_losses = []
-    num_samples = data.shape[0]
-    num_batches = (num_samples + batch_size - 1) // batch_size  # Ceiling division
-    
-    for epoch in range(epochs):
-        epoch_losses = []
-        
-        # Shuffle data at the beginning of each epoch
-        if shuffle:
-            indices = tf.random.shuffle(tf.range(num_samples))
-            shuffled_data = tf.gather(data, indices)
-        else:
-            shuffled_data = data
-        
-        # Process data in batches
-        for batch_idx in range(num_batches):
-            start_idx = batch_idx * batch_size
-            end_idx = min(start_idx + batch_size, num_samples)
-            batch_data = shuffled_data[start_idx:end_idx]
-            
-            # Skip batches that are too small for interpolation
-            if batch_data.shape[0] < 2:
-                continue
-                
-            with tf.GradientTape() as tape:
-                # Get predictions for current batch
-                preds = model(batch_data, training=True)
-                
-                # Create interpolated inputs and predictions
-                between_preds = []
-                between_inputs = []
-                
-                for j in range(1, batch_data.shape[0]):  # Start from 1 to avoid index 0
-                    # Interpolate between consecutive samples
-                    between_preds.append((preds[j] + preds[j-1]) / 2)
-                    between_inputs.append((batch_data[j] + batch_data[j-1]) / 2)
-                
-                # Skip if no interpolations possible
-                if not between_inputs:
-                    continue
-                
-                # Convert to tensors for batch processing
-                between_inputs_tensor = tf.stack(between_inputs)
-                between_preds_tensor = tf.stack(between_preds)
-                
-                # Get model predictions for interpolated inputs
-                between_outputs = model(between_inputs_tensor, training=True)
-                
-                # Compute consistency loss
-                batch_consistency_loss = consistency_weight * tf.reduce_mean(
-                    tf.square(between_outputs - between_preds_tensor)
-                )
-            
-            # Compute and apply gradients
-            gradients = tape.gradient(batch_consistency_loss, model.trainable_variables)
-            
-            # Check for valid gradients
-            if gradients and all(grad is not None for grad in gradients):
-                model.optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-                epoch_losses.append(batch_consistency_loss.numpy())
-        
-        # Average loss for this epoch
-        if epoch_losses:
-            avg_epoch_loss = sum(epoch_losses) / len(epoch_losses)
-            consistency_losses.append(avg_epoch_loss)
-            print(f"Consistency Training Epoch {epoch + 1}/{epochs} - Loss: {avg_epoch_loss:.6f}")
-        else:
-            consistency_losses.append(0.0)
-            print(f"Consistency Training Epoch {epoch + 1}/{epochs} - No valid batches processed")
-    
-    return consistency_losses
-
 
 def consistency_training_step_advanced(model, data, consistency_weight, optimizer, batch_size=32, epochs=10, 
                                      shuffle=True, interpolation_pairs='consecutive'):
@@ -217,6 +124,20 @@ def consistency_training_step_advanced(model, data, consistency_weight, optimize
     
     return consistency_losses
 
+class ConsistencyLRScheduler:
+    def __init__(self, initial_lr=1e-3, schedule_type='cosine', total_epochs=20):
+        self.initial_lr = initial_lr
+        self.schedule_type = schedule_type
+        self.total_epochs = total_epochs
+    
+    def get_lr(self, epoch):
+        if self.schedule_type == 'cosine':
+            return self.initial_lr * 0.5 * (1 + math.cos(math.pi * epoch / self.total_epochs))
+        elif self.schedule_type == 'step':
+            if epoch < 8: return self.initial_lr
+            elif epoch < 16: return self.initial_lr * 0.1
+            else: return self.initial_lr * 0.01
+
 def ss_model(loss_function = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
             optimizer = tf.keras.optimizers.AdamW(
                 learning_rate=1e-3,
@@ -285,11 +206,11 @@ if NORMALIZED:
 
 validation_set = (val_data_A, val_labels_A)
 
-consistency_optimizer = tf.keras.optimizers.AdamW(learning_rate=0.00001, weight_decay=0.01)
-
+# consistency_optimizer = tf.keras.optimizers.AdamW(learning_rate=0.0005, weight_decay=0.01) # was: lr=0.00001, wd=0.01
+lr_scheduler = ConsistencyLRScheduler(initial_lr=5e-4, schedule_type='cosine', total_epochs=20)
 
 model = ss_model()
-for i in range(50):
+for i in range(20):
     # ---------------
     # generate pseudo labels
 
@@ -316,55 +237,29 @@ for i in range(50):
     labels_train_combined = torch.concatenate([supervised_train_labels, pseudo_labels], axis=0)
     # ---------------
 
+    if CONSISTENCY_MULTIPLIER == 0:
+        consistency_loss = tf.constant(0.0)
+    else:
+        current_lr = lr_scheduler.get_lr(i)
+        consistency_optimizer = tf.keras.optimizers.AdamW(
+            learning_rate=current_lr,
+            weight_decay=0.01) # was: lr=0.00001, wd=0.01
+        # consistency training
+        consistency_losses = consistency_training_step_advanced(
+            model,
+            data_train_combined,
+            CONSISTENCY_MULTIPLIER,
+            batch_size=16,
+            epochs=1,
+            shuffle=True,
+            interpolation_pairs='random',
+            optimizer=consistency_optimizer
+        )
+        consistency_loss = tf.reduce_mean(consistency_losses, axis=0)
+        consistency_loss = 1/CONSISTENCY_MULTIPLIER * consistency_loss.numpy().item()
+
     # Train model again with both labeled and pseudo-labeled data
     model.fit(data_train_combined, labels_train_combined, epochs=19, validation_data=validation_set)
-    if True:
-        if CONSISTENCY_MULTIPLIER == 0:
-            consistency_loss = tf.constant(0.0)
-        else:
-            # consistency training
-            consistency_losses = consistency_training_step_advanced(
-                model,
-                data_train_combined,
-                CONSISTENCY_MULTIPLIER,
-                batch_size=64,
-                epochs=1,
-                shuffle=True,
-                interpolation_pairs='random',
-                optimizer=consistency_optimizer
-            )
-            consistency_loss = tf.reduce_mean(consistency_losses, axis=0)
-            consistency_loss = 1/CONSISTENCY_MULTIPLIER * consistency_loss.numpy().item()
-    
-    else:
-        consistency_loss = tf.constant(0.0)
-    # with tf.GradientTape() as tape:
-    #     batch_before_becoming_y_pred = data_train_combined
-    #     preds = model(batch_before_becoming_y_pred, training=True)  # Use training=True for gradient computation
-    #     pred_probs = preds
-
-    #     between_preds = []
-    #     between_inputs = []
-    #     for j in range(data_train_combined.shape[0]):  # Changed i to j to avoid conflict with outer loop
-    #         if j == 0:
-    #             continue
-
-    #         between_preds.append((pred_probs[j] + pred_probs[j-1]) / 2)
-    #         between_inputs.append((data_train_combined[j] + data_train_combined[j-1]) / 2)
-
-    #     # Convert lists to tensors for batch processing
-    #     between_inputs_tensor = tf.stack(between_inputs)
-    #     between_preds_tensor = tf.stack(between_preds)
-        
-    #     # Get model predictions for interpolated inputs
-    #     between_outputs = model(between_inputs_tensor, training=True)
-        
-    #     # Compute consistency loss as MSE between interpolated predictions and model outputs
-    #     consistency_loss = CONSISTENCY_MULTIPLIER * tf.reduce_mean(tf.square(between_outputs - between_preds_tensor))
-
-        
-    # gradients = tape.gradient(consistency_loss, model.trainable_variables)
-    # model.optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
     test_evaluation_B = model.evaluate(test_data_B, test_labels_B)
     test_evaluation_A = model.evaluate(test_data_A, test_labels_A)
@@ -388,6 +283,7 @@ for i in range(50):
     #     })
     if WANDB_ENABLED:
         wandb.log({
+            "consistency_loss": consistency_loss,
             "train_loss": train_evaluation_A[0],
             "train_accuracy": train_evaluation_A[1],
             "test_loss": test_evaluation_B[0],

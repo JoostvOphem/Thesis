@@ -7,7 +7,7 @@ import numpy as np
 from data_utils import get_dataset
 
 DATASET1 = "Ghostbusters_all"  # options: "Ghostbusters_all", "gpt_writing", "monolingual_davinci", "GPT2", "SemEval_complete"
-DATASET2 = "SemEval_complete"
+DATASET2 = "gpt2"
 ROBERTA_USED = "Ghostbusters_all"
 
 
@@ -16,8 +16,8 @@ if WANDB_ENABLED:
     import wandb
 
     run = wandb.init(
-        project="30-05-comparisons",
-        name=f'SSL_AB_{DATASET1}_{DATASET2}'
+        project="CL_testing",
+        name=f'line to compare to - gpt2'
     )
 
 def ss_model(loss_function = "sparse_categorical_crossentropy",
@@ -85,7 +85,7 @@ validation_set = (val_data_A, val_labels_A)
 
 model = ss_model()
 
-for i in range(20):
+for i in range(50):
     # ---------------
     # generate pseudo labels
 
@@ -95,8 +95,14 @@ for i in range(20):
     # Get max probabilities and predicted labels
     max_probs, predicted_labels = torch.max(pred_probs, dim=1)
 
-    # Filter for high-confidence predictions (>= 0.8)
-    confident_mask = max_probs >= 0.99
+    # Filter for high-confidence predictions (>= 0.99)
+
+    entropy = -torch.sum(pred_probs * torch.log(pred_probs + 1e-8), dim=1)
+    max_entropy = torch.log(torch.tensor(2.0))  # For binary classification
+    confidence = 1 - (entropy / max_entropy)
+    confident_mask = confidence >= 0.99
+
+    # confident_mask = max_probs >= 0.99
     num_confident = confident_mask.sum().item()
     pseudo_labels = predicted_labels[confident_mask].unsqueeze(1)
     data_pseudo_labeled = unsupervised_train_data[confident_mask]
